@@ -4,10 +4,10 @@ if (tg) {
   tg.expand();
 }
 
-// 1. ТВОЯ ССЫЛКА НА GOOGLE ТАБЛИЦУ
-const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxrYOz4HwWfM_CPBC055FllTqUE3FZI_ZmntLO5BNLPhWIYbQmY9uzFlrrMP9cjwMAW/exec";
+// 1. ВСТАВЬ СЮДА ССЫЛКУ ИЗ GOOGLE APPS SCRIPT:
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxrYOz4HwWfM_CPBC055FIlTqUE3FZI_ZmntLO5BNLPhWIYbQmY9uzFIrrMP9cjwMAW/exec";
 
-// 2. Единый постоянный ключ
+// 2. Единый постоянный ключ сохранения
 const PRIMARY_KEY = 'prime_save_stable';
 
 // Базовое состояние
@@ -21,14 +21,63 @@ let state = {
 
 // Справочник баков
 const TANKS = {
-  berserker: { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, lucky2: 0, lucky3: 0, desc: 'MTL классика. Базовый обдув' },
-  zeus: { id: 'zeus', name: 'Zeus Sub-Ohm / RTA', image: 'assets/zeus.png', price: 1000, lucky2: 0.15, lucky3: 0.00, desc: 'Верхний обдув, 15% шанс Lucky x2' },
-  bishop: { id: 'bishop', name: 'Bishop MTL RTA', image: 'assets/bishop.png', price: 2000, lucky2: 0.25, lucky3: 0.00, desc: 'Тихий обдув, 25% шанс Lucky x2' },
-  siren: { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 5000, lucky2: 0.35, lucky3: 0.05, desc: 'GTA-система, 35% x2, 5% x3' },
-  fev: { id: 'fev', name: 'Flash-e-Vapor (FeV)', image: 'assets/fev.png', price: 10000, lucky2: 0.40, lucky3: 0.15, desc: 'ТХ и легендарный обдув, 40% x2, 15% x3' },
-  paravozz: { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 15000, lucky2: 0.50, lucky3: 0.30, desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3' }
+  berserker: { 
+    id: 'berserker', 
+    name: 'Berserker V2', 
+    image: 'assets/berserker_v2.png', 
+    price: 0, 
+    lucky2: 0, 
+    lucky3: 0, 
+    desc: 'MTL классика. Базовый обдув' 
+  },
+  zeus: { 
+    id: 'zeus', 
+    name: 'Zeus Sub-Ohm / RTA', 
+    image: 'assets/zeus.png', 
+    price: 1000, 
+    lucky2: 0.15, 
+    lucky3: 0.00, 
+    desc: 'Верхний обдув, 15% шанс Lucky x2' 
+  },
+  bishop: { 
+    id: 'bishop', 
+    name: 'Bishop MTL RTA', 
+    image: 'assets/bishop.png', 
+    price: 2000, 
+    lucky2: 0.25, 
+    lucky3: 0.00, 
+    desc: 'Тихий обдув, 25% шанс Lucky x2' 
+  },
+  siren: { 
+    id: 'siren', 
+    name: 'Siren 2 GTA', 
+    image: 'assets/siren.png', 
+    price: 5000, 
+    lucky2: 0.35, 
+    lucky3: 0.05, 
+    desc: 'GTA-система, 35% x2, 5% x3' 
+  },
+  fev: { 
+    id: 'fev', 
+    name: 'Flash-e-Vapor (FeV)', 
+    image: 'assets/fev.png', 
+    price: 10000, 
+    lucky2: 0.40, 
+    lucky3: 0.15, 
+    desc: 'ТХ и легендарный обдув, 40% x2, 15% x3' 
+  },
+  paravozz: { 
+    id: 'paravozz', 
+    name: 'Paravozz Genesis', 
+    image: 'assets/paravozz.png', 
+    price: 15000, 
+    lucky2: 0.50, 
+    lucky3: 0.30, 
+    desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3' 
+  }
 };
 
+// Сетка рангов
 const RANKS = [
   { min: 0, max: 1000, title: 'Респектовый' },
   { min: 1000, max: 5000, title: 'Локал бой' },
@@ -38,6 +87,7 @@ const RANKS = [
   { min: 30000, max: Infinity, title: 'Легенда пара' }
 ];
 
+// Справочник кейсов
 const CASES = [
   { id: 'case_500', title: 'Бюджетный кейс', cost: 500, minCoins: 50, maxCoins: 200, couponChance: 0.015 },
   { id: 'case_1000', title: 'Стандартный кейс', cost: 1000, minCoins: 200, maxCoins: 600, couponChance: 0.02 },
@@ -45,7 +95,7 @@ const CASES = [
   { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 3000, maxCoins: 10000, couponChance: 0.05 }
 ];
 
-// Пар (Canvas)
+// Физика пара (Canvas)
 const canvas = document.getElementById('steam-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
@@ -99,7 +149,9 @@ renderSteam();
 function spawnSteam() {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  for (let i = 0; i < 5; i++) particles.push(new SteamParticle(cx, cy));
+  for (let i = 0; i < 5; i++) {
+    particles.push(new SteamParticle(cx, cy));
+  }
 }
 
 // Клик по баку
@@ -329,7 +381,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   });
 });
 
-// 3. Сохранение и синхронизация
+// Сохранение данных
 let saveTimeout = null;
 function scheduleSave() {
   if (saveTimeout) clearTimeout(saveTimeout);
@@ -345,16 +397,21 @@ function forceSave() {
   }
 
   if (GOOGLE_SHEET_URL) {
-    const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "1765371186";
-    const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "DNA_Sergeant";
+    const realTgId = tg?.initDataUnsafe?.user?.id 
+      ? String(tg.initDataUnsafe.user.id) 
+      : "1235454371";
+      
+    const realUsername = tg?.initDataUnsafe?.user?.username 
+      || tg?.initDataUnsafe?.user?.first_name 
+      || "emtblds";
 
     fetch(GOOGLE_SHEET_URL, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
-        tgId: tgId,
-        username: username,
+        tgId: realTgId,
+        username: realUsername,
         clicks: state.clicks,
         primeCoins: state.primeCoins,
         equippedTank: state.equippedTank,
@@ -364,9 +421,8 @@ function forceSave() {
   }
 }
 
-// 4. Восстановление данных
+// Восстановление данных
 function loadState() {
-  // Пытаемся достать данные изо всех возможных старых ключей
   const saved = localStorage.getItem(PRIMARY_KEY) || 
                 localStorage.getItem('prime_vapor_save_main') || 
                 localStorage.getItem('prime_save_v2') || 
@@ -374,21 +430,26 @@ function loadState() {
 
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
-      state = Object.assign(state, parsed);
+      state = Object.assign(state, JSON.parse(saved));
     } catch (e) {}
   }
 
-  // Принудительно проверяем таблицу Google
+  // Принудительно забираем накрутку из Google Таблицы
   if (GOOGLE_SHEET_URL) {
-    const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "1765371186";
-    fetch(`${GOOGLE_SHEET_URL}?tgId=${tgId}`)
+    const realTgId = tg?.initDataUnsafe?.user?.id 
+      ? String(tg.initDataUnsafe.user.id) 
+      : "1235454371";
+
+    fetch(`${GOOGLE_SHEET_URL}?tgId=${realTgId}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === "ok") {
-          // Если в таблице значения отличаются от нуля — ставим их
-          if (data.clicks !== undefined) state.clicks = Number(data.clicks);
-          if (data.primeCoins !== undefined) state.primeCoins = Number(data.primeCoins);
+          if (data.clicks !== undefined && Number(data.clicks) >= state.clicks) {
+            state.clicks = Number(data.clicks);
+          }
+          if (data.primeCoins !== undefined && Number(data.primeCoins) >= state.primeCoins) {
+            state.primeCoins = Number(data.primeCoins);
+          }
           if (data.equippedTank) {
             state.equippedTank = data.equippedTank;
             if (!state.unlockedTanks.includes(data.equippedTank)) {
