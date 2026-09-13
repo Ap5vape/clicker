@@ -4,11 +4,14 @@ if (tg) {
   tg.expand();
 }
 
-// 1. Ссылка на веб-приложение Google Apps Script
+// 1. Конфигурация
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
-
-// 2. Постоянный ключ для сохранения
 const PRIMARY_KEY = 'prime_save_stable';
+
+// Бот и каналы
+const BOT_TOKEN = "8978900644:AAH_vRgnhG0JSTl_pp1TXfx-eme8xF2_OS4";
+const CHANNEL_REVIEW = "@PrimeVapor_Review";
+const CHANNEL_MAIN = "@Prime_Vapor";
 
 // Состояние игрока
 let state = {
@@ -16,65 +19,18 @@ let state = {
   primeCoins: 0,
   equippedTank: 'berserker',
   unlockedTanks: ['berserker'],
-  coupons: []
+  coupons: [],
+  completedTasks: []
 };
 
 // Справочник баков
 const TANKS = {
-  berserker: { 
-    id: 'berserker', 
-    name: 'Berserker V2', 
-    image: 'assets/berserker_v2.png', 
-    price: 0, 
-    lucky2: 0, 
-    lucky3: 0, 
-    desc: 'MTL классика. Базовый обдув' 
-  },
-  zeus: { 
-    id: 'zeus', 
-    name: 'Zeus Sub-Ohm / RTA', 
-    image: 'assets/zeus.png', 
-    price: 1000, 
-    lucky2: 0.15, 
-    lucky3: 0.00, 
-    desc: 'Верхний обдув, 15% шанс Lucky x2' 
-  },
-  bishop: { 
-    id: 'bishop', 
-    name: 'Bishop MTL RTA', 
-    image: 'assets/bishop.png', 
-    price: 2000, 
-    lucky2: 0.25, 
-    lucky3: 0.00, 
-    desc: 'Тихий обдув, 25% шанс Lucky x2' 
-  },
-  siren: { 
-    id: 'siren', 
-    name: 'Siren 2 GTA', 
-    image: 'assets/siren.png', 
-    price: 5000, 
-    lucky2: 0.35, 
-    lucky3: 0.05, 
-    desc: 'GTA-система, 35% x2, 5% x3' 
-  },
-  fev: { 
-    id: 'fev', 
-    name: 'Flash-e-Vapor (FeV)', 
-    image: 'assets/fev.png', 
-    price: 10000, 
-    lucky2: 0.40, 
-    lucky3: 0.15, 
-    desc: 'ТХ и легендарный обдув, 40% x2, 15% x3' 
-  },
-  paravozz: { 
-    id: 'paravozz', 
-    name: 'Paravozz Genesis', 
-    image: 'assets/paravozz.png', 
-    price: 15000, 
-    lucky2: 0.50, 
-    lucky3: 0.30, 
-    desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3' 
-  }
+  berserker: { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, lucky2: 0, lucky3: 0, desc: 'MTL классика. Базовый обдув' },
+  zeus: { id: 'zeus', name: 'Zeus Sub-Ohm / RTA', image: 'assets/zeus.png', price: 1000, lucky2: 0.15, lucky3: 0.00, desc: 'Верхний обдув, 15% шанс Lucky x2' },
+  bishop: { id: 'bishop', name: 'Bishop MTL RTA', image: 'assets/bishop.png', price: 2000, lucky2: 0.25, lucky3: 0.00, desc: 'Тихий обдув, 25% шанс Lucky x2' },
+  siren: { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 5000, lucky2: 0.35, lucky3: 0.05, desc: 'GTA-система, 35% x2, 5% x3' },
+  fev: { id: 'fev', name: 'Flash-e-Vapor (FeV)', image: 'assets/fev.png', price: 10000, lucky2: 0.40, lucky3: 0.15, desc: 'ТХ и легендарный обдув, 40% x2, 15% x3' },
+  paravozz: { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 15000, lucky2: 0.50, lucky3: 0.30, desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3' }
 };
 
 // Сетка рангов
@@ -95,7 +51,7 @@ const CASES = [
   { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 3000, maxCoins: 10000, couponChance: 0.05 }
 ];
 
-// Определение пользователя (Telegram / Web / iOS)
+// Определение пользователя
 function getTelegramUser() {
   let user = tg?.initDataUnsafe?.user;
 
@@ -235,7 +191,7 @@ function updateUI() {
   if (clicksEl) clicksEl.innerText = Number(state.clicks || 0).toLocaleString();
   if (coinsEl) coinsEl.innerText = Number(state.primeCoins || 0).toLocaleString();
 
-  // Ранг и шкала прогресса
+  // Ранг
   let currentRank = RANKS[0];
   let nextRank = RANKS[1];
   for (let i = 0; i < RANKS.length; i++) {
@@ -262,7 +218,7 @@ function updateUI() {
     if (hintEl) hintEl.innerText = 'Максимальный уровень';
   }
 
-  // Данные бака
+  // Бак
   const current = TANKS[state.equippedTank] || TANKS.berserker;
   const nameEl = document.getElementById('current-tank-name');
   const perkEl = document.getElementById('tank-perk');
@@ -277,7 +233,88 @@ function updateUI() {
   renderTanks();
   renderCases();
   renderCoupons();
+  renderTasks();
 }
+
+// Задания и валидация подписки через Bot API
+function renderTasks() {
+  const container = document.getElementById('tasks-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const isReviewDone = state.completedTasks && state.completedTasks.includes('sub_review');
+  const isMainDone = state.completedTasks && state.completedTasks.includes('sub_main');
+
+  // Квест 1: Prime Review
+  const divReview = document.createElement('div');
+  divReview.className = 'item-card';
+  divReview.innerHTML = `
+    <div>
+      <strong>Подписка на Prime Review</strong>
+      <p style="font-size:0.8rem; color:#8b92a5;">Канал с топовыми честными обзорами девайсов</p>
+      <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">+200 PrimeCoins</span>
+    </div>
+    <div class="task-btn-group">
+      ${isReviewDone
+        ? '<button class="item-btn equipped" disabled>Получено</button>'
+        : `<a href="https://t.me/PrimeVapor_Review" target="_blank" class="item-btn" style="text-decoration:none;">Канал</a>
+           <button class="item-btn check" onclick="verifySubscription('${CHANNEL_REVIEW}', 'sub_review', 200)">Проверить</button>`
+      }
+    </div>
+  `;
+  container.appendChild(divReview);
+
+  // Квест 2: Prime Vapor
+  const divMain = document.createElement('div');
+  divMain.className = 'item-card';
+  divMain.innerHTML = `
+    <div>
+      <strong>Комьюнити Prime Vapor</strong>
+      <p style="font-size:0.8rem; color:#8b92a5;">Главный чат и новости сообщества</p>
+      <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">+100 PrimeCoins</span>
+    </div>
+    <div class="task-btn-group">
+      ${isMainDone
+        ? '<button class="item-btn equipped" disabled>Получено</button>'
+        : `<a href="https://t.me/Prime_Vapor" target="_blank" class="item-btn" style="text-decoration:none;">Канал</a>
+           <button class="item-btn check" onclick="verifySubscription('${CHANNEL_MAIN}', 'sub_main', 100)">Проверить</button>`
+      }
+    </div>
+  `;
+  container.appendChild(divMain);
+}
+
+// Проверка членства в Telegram-канале через Bot API
+window.verifySubscription = async function(channelUsername, taskId, reward) {
+  const userInfo = getTelegramUser();
+
+  if (userInfo.id.startsWith("guest_")) {
+    showModal("Ошибка", "⚠️", "Запустите игру через Telegram, чтобы забрать награду.");
+    return;
+  }
+
+  try {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${channelUsername}&user_id=${userInfo.id}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.ok && ["member", "administrator", "creator"].includes(data.result?.status)) {
+      if (!state.completedTasks) state.completedTasks = [];
+      state.completedTasks.push(taskId);
+      state.primeCoins += reward;
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      showModal("Награда получена!", "🪙", `Подписка подтверждена! Вам начислено +${reward} PrimeCoins.`);
+      updateUI();
+      forceSave();
+    } else {
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      showModal("Не подписан", "❌", `Вы ещё не подписались на канал ${channelUsername}. Подпишитесь и нажмите «Проверить».`);
+    }
+  } catch (e) {
+    showModal("Ошибка сети", "⚠️", "Не удалось связаться с Telegram API. Попробуйте через минуту.");
+  }
+};
 
 function renderTanks() {
   const container = document.getElementById('tanks-list');
@@ -459,7 +496,8 @@ function forceSave() {
       clicks: state.clicks,
       primeCoins: state.primeCoins,
       equippedTank: state.equippedTank,
-      coupons: state.coupons
+      coupons: state.coupons,
+      completedTasks: state.completedTasks
     });
 
     fetch(GOOGLE_SHEET_URL, {
@@ -488,7 +526,6 @@ window.onGoogleSheetDataLoaded = function(data) {
 };
 
 function loadState() {
-  // 1. Быстрый локальный старт из кэша
   const saved = localStorage.getItem(PRIMARY_KEY) || 
                 localStorage.getItem('prime_vapor_save_main') || 
                 localStorage.getItem('prime_save_v2') || 
@@ -501,7 +538,6 @@ function loadState() {
   }
   updateUI();
 
-  // 2. Чтение из таблицы через динамический JSONP-тег (обходит ограничения CORS и iOS Safari)
   if (GOOGLE_SHEET_URL) {
     const userInfo = getTelegramUser();
     const script = document.createElement('script');
@@ -510,5 +546,4 @@ function loadState() {
   }
 }
 
-// Запуск инициализации при старте страницы
 loadState();
