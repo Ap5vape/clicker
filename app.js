@@ -444,4 +444,32 @@ function loadState() {
   updateUI();
 }
 
-loadState();
+function loadState() {
+  // 1. Сначала моментально поднимаем локальный сейв, чтобы экран не мигал
+  const local = localStorage.getItem('prime_vapor_save_main') || localStorage.getItem('prime_save_v2');
+  if (local) {
+    try {
+      state = Object.assign(state, JSON.parse(local));
+    } catch (e) {}
+  }
+  updateUI();
+
+  // 2. Фоном запрашиваем актуальные данные из Google Таблицы (где ты мог накрутить очки)
+  const tgId = tg?.initDataUnsafe?.user?.id;
+  if (GOOGLE_SHEET_URL && tgId) {
+    fetch(`${GOOGLE_SHEET_URL}?tgId=${tgId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "ok") {
+          // Если ты в таблице руками поставил цифры больше — игра примет их!
+          if (data.clicks > state.clicks) state.clicks = data.clicks;
+          if (data.primeCoins > state.primeCoins) state.primeCoins = data.primeCoins;
+          if (data.equippedTank) state.equippedTank = data.equippedTank;
+          
+          updateUI();
+          localStorage.setItem('prime_vapor_save_main', JSON.stringify(state));
+        }
+      })
+      .catch(() => {});
+  }
+}
