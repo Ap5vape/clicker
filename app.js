@@ -4,13 +4,13 @@ if (tg) {
   tg.expand();
 }
 
-// 1. ВСТАВЬ СЮДА ССЫЛКУ ИЗ GOOGLE APPS SCRIPT:
+// 1. Ссылка на веб-приложение Google Apps Script
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxrYOz4HwWfM_CPBC055FIlTqUE3FZI_ZmntLO5BNLPhWIYbQmY9uzFIrrMP9cjwMAW/exec";
 
-// 2. Единый постоянный ключ сохранения
+// 2. Постоянный ключ для сохранения
 const PRIMARY_KEY = 'prime_save_stable';
 
-// Базовое состояние
+// Состояние игрока
 let state = {
   clicks: 0,
   primeCoins: 0,
@@ -95,13 +95,44 @@ const CASES = [
   { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 3000, maxCoins: 10000, couponChance: 0.05 }
 ];
 
-// Физика пара (Canvas)
+// Определение пользователя (Telegram / Web / iOS)
+function getTelegramUser() {
+  let user = tg?.initDataUnsafe?.user;
+
+  if (!user && tg?.initData) {
+    try {
+      const params = new URLSearchParams(tg.initData);
+      const userRaw = params.get('user');
+      if (userRaw) user = JSON.parse(userRaw);
+    } catch (e) {}
+  }
+
+  if (user && user.id) {
+    return {
+      id: String(user.id),
+      name: user.username ? `@${user.username}` : (user.first_name || "Игрок")
+    };
+  }
+
+  let guestId = localStorage.getItem('prime_guest_id');
+  if (!guestId) {
+    guestId = "guest_" + Math.random().toString(36).substring(2, 9);
+    localStorage.setItem('prime_guest_id', guestId);
+  }
+
+  return {
+    id: guestId,
+    name: "Гость (" + guestId.slice(-4) + ")"
+  };
+}
+
+// Пар (Canvas)
 const canvas = document.getElementById('steam-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
 
 function resizeCanvas() {
-  if (!canvas.parentElement) return;
+  if (!canvas || !canvas.parentElement) return;
   canvas.width = canvas.parentElement.clientWidth;
   canvas.height = canvas.parentElement.clientHeight;
 }
@@ -124,6 +155,7 @@ class SteamParticle {
     this.alpha -= 0.011;
   }
   draw() {
+    if (!ctx) return;
     ctx.save();
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -136,17 +168,20 @@ class SteamParticle {
 }
 
 function renderSteam() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let i = particles.length - 1; i >= 0; i--) {
-    particles[i].update();
-    particles[i].draw();
-    if (particles[i].alpha <= 0) particles.splice(i, 1);
+  if (ctx && canvas) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      particles[i].update();
+      particles[i].draw();
+      if (particles[i].alpha <= 0) particles.splice(i, 1);
+    }
   }
   requestAnimationFrame(renderSteam);
 }
 renderSteam();
 
 function spawnSteam() {
+  if (!canvas) return;
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   for (let i = 0; i < 5; i++) {
@@ -156,30 +191,32 @@ function spawnSteam() {
 
 // Клик по баку
 const tankTarget = document.getElementById('tank-target');
-tankTarget.addEventListener('pointerdown', (e) => {
-  const current = TANKS[state.equippedTank] || TANKS.berserker;
-  let mult = 1;
-  let luckyClass = '';
+if (tankTarget) {
+  tankTarget.addEventListener('pointerdown', (e) => {
+    const current = TANKS[state.equippedTank] || TANKS.berserker;
+    let mult = 1;
+    let luckyClass = '';
 
-  const roll = Math.random();
-  if (current.lucky3 > 0 && roll < current.lucky3) {
-    mult = 3;
-    luckyClass = 'lucky-3';
-    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-  } else if (current.lucky2 > 0 && roll < (current.lucky3 + current.lucky2)) {
-    mult = 2;
-    luckyClass = 'lucky-2';
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
-  } else {
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-  }
+    const roll = Math.random();
+    if (current.lucky3 > 0 && roll < current.lucky3) {
+      mult = 3;
+      luckyClass = 'lucky-3';
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    } else if (current.lucky2 > 0 && roll < (current.lucky3 + current.lucky2)) {
+      mult = 2;
+      luckyClass = 'lucky-2';
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
+    } else {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    }
 
-  state.clicks += mult;
-  spawnSteam();
-  showTapEffect(e.clientX, e.clientY, mult, luckyClass);
-  updateUI();
-  scheduleSave();
-});
+    state.clicks += mult;
+    spawnSteam();
+    showTapEffect(e.clientX, e.clientY, mult, luckyClass);
+    updateUI();
+    scheduleSave();
+  });
+}
 
 function showTapEffect(x, y, mult, luckyClass) {
   const el = document.createElement('div');
@@ -193,10 +230,12 @@ function showTapEffect(x, y, mult, luckyClass) {
 
 // Обновление интерфейса
 function updateUI() {
-  document.getElementById('clicks-display').innerText = Number(state.clicks || 0).toLocaleString();
-  document.getElementById('coins-display').innerText = Number(state.primeCoins || 0).toLocaleString();
+  const clicksEl = document.getElementById('clicks-display');
+  const coinsEl = document.getElementById('coins-display');
+  if (clicksEl) clicksEl.innerText = Number(state.clicks || 0).toLocaleString();
+  if (coinsEl) coinsEl.innerText = Number(state.primeCoins || 0).toLocaleString();
 
-  // Ранг
+  // Ранг и прогресс-бар
   let currentRank = RANKS[0];
   let nextRank = RANKS[1];
   for (let i = 0; i < RANKS.length; i++) {
@@ -207,26 +246,32 @@ function updateUI() {
     }
   }
 
-  document.getElementById('player-status').innerText = currentRank.title;
+  const statusEl = document.getElementById('player-status');
+  const barEl = document.getElementById('level-progress-bar');
+  const hintEl = document.getElementById('level-progress-text');
+
+  if (statusEl) statusEl.innerText = currentRank.title;
   if (nextRank) {
     const need = nextRank.min - currentRank.min;
     const cur = state.clicks - currentRank.min;
     const pct = Math.min(Math.max((cur / need) * 100, 0), 100);
-    document.getElementById('level-progress-bar').style.width = `${pct}%`;
-    document.getElementById('level-progress-text').innerText = `${state.clicks} / ${nextRank.min} до ${nextRank.title}`;
+    if (barEl) barEl.style.width = `${pct}%`;
+    if (hintEl) hintEl.innerText = `${state.clicks} / ${nextRank.min} до ${nextRank.title}`;
   } else {
-    document.getElementById('level-progress-bar').style.width = '100%';
-    document.getElementById('level-progress-text').innerText = 'Максимальный уровень';
+    if (barEl) barEl.style.width = '100%';
+    if (hintEl) hintEl.innerText = 'Максимальный уровень';
   }
 
-  // Бак
+  // Данные бака
   const current = TANKS[state.equippedTank] || TANKS.berserker;
-  document.getElementById('current-tank-name').innerText = current.name;
-  document.getElementById('tank-perk').innerText = current.desc;
-  
-  const tankImg = document.getElementById('tank-image');
-  if (tankImg && !tankImg.src.includes(current.image)) {
-    tankImg.src = current.image;
+  const nameEl = document.getElementById('current-tank-name');
+  const perkEl = document.getElementById('tank-perk');
+  const imgEl = document.getElementById('tank-image');
+
+  if (nameEl) nameEl.innerText = current.name;
+  if (perkEl) perkEl.innerText = current.desc;
+  if (imgEl && !imgEl.src.includes(current.image)) {
+    imgEl.src = current.image;
   }
 
   renderTanks();
@@ -362,14 +407,23 @@ window.openCase = function(id) {
 };
 
 function showModal(title, icon, desc) {
-  document.getElementById('modal-title').innerText = title;
-  document.getElementById('modal-icon').innerText = icon;
-  document.getElementById('modal-desc').innerText = desc;
-  document.getElementById('drop-modal').classList.remove('hidden');
+  const mTitle = document.getElementById('modal-title');
+  const mIcon = document.getElementById('modal-icon');
+  const mDesc = document.getElementById('modal-desc');
+  const modal = document.getElementById('drop-modal');
+
+  if (mTitle) mTitle.innerText = title;
+  if (mIcon) mIcon.innerText = icon;
+  if (mDesc) mDesc.innerText = desc;
+  if (modal) modal.classList.remove('hidden');
 }
-document.getElementById('modal-close').addEventListener('click', () => {
-  document.getElementById('drop-modal').classList.add('hidden');
-});
+
+const modalCloseBtn = document.getElementById('modal-close');
+if (modalCloseBtn) {
+  modalCloseBtn.addEventListener('click', () => {
+    document.getElementById('drop-modal')?.classList.add('hidden');
+  });
+}
 
 // Навигация
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -377,7 +431,8 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(btn.dataset.tab).classList.add('active');
+    const target = document.getElementById(btn.dataset.tab);
+    if (target) target.classList.add('active');
   });
 });
 
@@ -385,7 +440,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 let saveTimeout = null;
 function scheduleSave() {
   if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(forceSave, 1000);
+  saveTimeout = setTimeout(forceSave, 800);
 }
 
 function forceSave() {
@@ -398,37 +453,27 @@ function forceSave() {
 
   if (GOOGLE_SHEET_URL) {
     const userInfo = getTelegramUser();
-    const payloadStr = JSON.stringify({
-      tgId: userInfo.id,
-      username: userInfo.name,
-      clicks: state.clicks,
-      primeCoins: state.primeCoins,
-      equippedTank: state.equippedTank,
-      coupons: state.coupons
-    });
 
-    // Способ для iOS: navigator.sendBeacon или скрытая форма
-    // iOS Safari не блокирует sendBeacon даже при сворачивании приложения
-    let sent = false;
-    if (navigator.sendBeacon) {
-      const blob = new Blob([payloadStr], { type: 'text/plain;charset=UTF-8' });
-      sent = navigator.sendBeacon(GOOGLE_SHEET_URL, blob);
-    }
-
-    // Запасной вариант, если sendBeacon не сработал
-    if (!sent) {
-      fetch(GOOGLE_SHEET_URL, {
-        method: "POST",
-        mode: "no-cors",
-        cache: "no-cache",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: payloadStr
-      }).catch(() => {});
-    }
+    fetch(GOOGLE_SHEET_URL, {
+      method: "POST",
+      mode: "no-cors",
+      keepalive: true,
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        tgId: userInfo.id,
+        username: userInfo.name,
+        clicks: state.clicks,
+        primeCoins: state.primeCoins,
+        equippedTank: state.equippedTank,
+        coupons: state.coupons
+      })
+    }).catch(() => {});
   }
 }
 
-// Восстановление данных
+window.addEventListener('beforeunload', forceSave);
+
+// Загрузка
 function loadState() {
   const saved = localStorage.getItem(PRIMARY_KEY) || 
                 localStorage.getItem('prime_vapor_save_main') || 
@@ -441,16 +486,13 @@ function loadState() {
     } catch (e) {}
   }
 
-  // Принудительно забираем накрутку из Google Таблицы
   if (GOOGLE_SHEET_URL) {
-    const realTgId = tg?.initDataUnsafe?.user?.id 
-      ? String(tg.initDataUnsafe.user.id) 
-      : "1235454371";
+    const userInfo = getTelegramUser();
 
-    fetch(`${GOOGLE_SHEET_URL}?tgId=${realTgId}`)
+    fetch(`${GOOGLE_SHEET_URL}?tgId=${userInfo.id}`)
       .then(res => res.json())
       .then(data => {
-        if (data.status === "ok") {
+        if (data && data.status === "ok") {
           if (data.clicks !== undefined && Number(data.clicks) >= state.clicks) {
             state.clicks = Number(data.clicks);
           }
@@ -468,6 +510,8 @@ function loadState() {
         }
       })
       .catch(() => {});
+
+    forceSave();
   }
 
   updateUI();
