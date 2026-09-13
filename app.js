@@ -4,7 +4,10 @@ if (tg) {
   tg.expand();
 }
 
-// 1. Игровое состояние
+// ВСТАВЬ СЮДА ССЫЛКУ ИЗ GOOGLE APPS SCRIPT (ЕСЛИ СДЕЛАЛ ТАБЛИЦУ):
+const GOOGLE_SHEET_URL = ""; 
+
+// Состояние игрока
 let state = {
   clicks: 0,
   primeCoins: 0,
@@ -13,11 +16,12 @@ let state = {
   coupons: []
 };
 
-// 2. Справочник баков
+// Справочник баков
 const TANKS = {
   berserker: {
     id: 'berserker',
     name: 'Berserker V2',
+    image: 'assets/berserker_v2.png',
     price: 0,
     lucky2: 0,
     lucky3: 0,
@@ -26,22 +30,25 @@ const TANKS = {
   zeus: {
     id: 'zeus',
     name: 'Zeus Sub-Ohm / RTA',
+    image: 'assets/zeus.png',
     price: 1000,
     lucky2: 0.15,
-    lucky3: 0.00,
+    lucky3: 0,
     desc: 'Верхний обдув, 15% шанс Lucky x2'
   },
   bishop: {
     id: 'bishop',
     name: 'Bishop MTL RTA',
+    image: 'assets/bishop.png',
     price: 2000,
     lucky2: 0.25,
-    lucky3: 0.00,
-    desc: 'Тихая затяжка, 25% шанс Lucky x2'
+    lucky3: 0,
+    desc: 'Тихий обдув, 25% шанс Lucky x2'
   },
   siren: {
     id: 'siren',
     name: 'Siren 2 GTA',
+    image: 'assets/siren.png',
     price: 5000,
     lucky2: 0.35,
     lucky3: 0.05,
@@ -50,72 +57,42 @@ const TANKS = {
   fev: {
     id: 'fev',
     name: 'Flash-e-Vapor (FeV)',
+    image: 'assets/fev.png',
     price: 10000,
     lucky2: 0.40,
     lucky3: 0.15,
-    desc: 'Неубиваемый ТХ, 40% x2, 15% x3'
+    desc: 'ТХ и легендарный обдув, 40% x2, 15% x3'
   },
   paravozz: {
     id: 'paravozz',
     name: 'Paravozz Genesis',
+    image: 'assets/paravozz.png',
     price: 15000,
     lucky2: 0.50,
     lucky3: 0.30,
-    desc: 'Сетка. 50% шанс x2, 30% шанс x3'
+    desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3'
   }
 };
 
-// 3. Справочник кейсов
-const CASES = [
-  {
-    id: 'case_500',
-    title: 'Бюджетный кейс',
-    cost: 500,
-    minCoins: 50,
-    maxCoins: 200,
-    couponChance: 0.01,
-    couponDiscount: '5%'
-  },
-  {
-    id: 'case_1000',
-    title: 'Стандартный кейс',
-    cost: 1000,
-    minCoins: 200,
-    maxCoins: 600,
-    couponChance: 0.015,
-    couponDiscount: '10%'
-  },
-  {
-    id: 'case_5000',
-    title: 'Опытный кейс',
-    cost: 5000,
-    minCoins: 1200,
-    maxCoins: 3500,
-    couponChance: 0.025,
-    couponDiscount: '15%'
-  },
-  {
-    id: 'case_10000',
-    title: 'Prime Кейс',
-    cost: 10000,
-    minCoins: 3000,
-    maxCoins: 10000,
-    couponChance: 0.04,
-    couponDiscount: 'Бесплатный кейс АКБ'
-  }
+// Сетка рангов
+const RANKS = [
+  { min: 0, max: 1000, title: 'Респектовый' },
+  { min: 1000, max: 5000, title: 'Локал бой' },
+  { min: 5000, max: 10000, title: 'Вейпер' },
+  { min: 10000, max: 20000, title: 'Тру вейпер' },
+  { min: 20000, max: 30000, title: 'PrimeВейпер' },
+  { min: 30000, max: Infinity, title: 'Легенда пара' }
 ];
 
-// 4. Определение статуса по кликам
-function getStatusTitle(clicks) {
-  if (clicks < 1000) return 'Респектовый';
-  if (clicks < 5000) return 'Локал бой';
-  if (clicks < 10000) return 'Вейпер';
-  if (clicks < 20000) return 'Тру вейпер';
-  if (clicks < 30000) return 'PrimeВейпер';
-  return 'Легенда пара';
-}
+// Кейсы: купон теперь строго 10% скидки
+const CASES = [
+  { id: 'case_500', title: 'Бюджетный кейс', cost: 500, minCoins: 50, maxCoins: 200, couponChance: 0.015 },
+  { id: 'case_1000', title: 'Стандартный кейс', cost: 1000, minCoins: 200, maxCoins: 600, couponChance: 0.02 },
+  { id: 'case_5000', title: 'Опытный кейс', cost: 5000, minCoins: 1200, maxCoins: 3500, couponChance: 0.035 },
+  { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 3000, maxCoins: 10000, couponChance: 0.05 }
+];
 
-// 5. Холст пара (Canvas Particle System)
+// 1. Физика пара (Canvas)
 const canvas = document.getElementById('steam-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
@@ -129,26 +106,26 @@ resizeCanvas();
 
 class SteamParticle {
   constructor(x, y) {
-    this.x = x + (Math.random() - 0.5) * 40;
+    this.x = x + (Math.random() - 0.5) * 50;
     this.y = y;
-    this.radius = 12 + Math.random() * 10;
-    this.vx = (Math.random() - 0.5) * 1.5;
-    this.vy = -2 - Math.random() * 2.5;
-    this.alpha = 0.45;
+    this.radius = 15 + Math.random() * 12;
+    this.vx = (Math.random() - 0.5) * 1.8;
+    this.vy = -2.5 - Math.random() * 2.8;
+    this.alpha = 0.5;
   }
   update() {
     this.x += this.vx;
     this.y += this.vy;
-    this.radius += 0.4;
-    this.alpha -= 0.009;
+    this.radius += 0.45;
+    this.alpha -= 0.011;
   }
   draw() {
     ctx.save();
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(220, 230, 245, ${Math.max(this.alpha, 0)})`;
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillStyle = `rgba(230, 235, 245, ${Math.max(this.alpha, 0)})`;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.25)';
     ctx.fill();
     ctx.restore();
   }
@@ -168,12 +145,12 @@ renderSteam();
 function spawnSteam() {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     particles.push(new SteamParticle(cx, cy));
   }
 }
 
-// 6. Логика клика и Lucky-множителей
+// 2. Обработка клика
 const tankTarget = document.getElementById('tank-target');
 tankTarget.addEventListener('pointerdown', (e) => {
   const current = TANKS[state.equippedTank];
@@ -195,22 +172,73 @@ tankTarget.addEventListener('pointerdown', (e) => {
 
   state.clicks += multiplier;
   spawnSteam();
-  showTapFeedback(e.clientX, e.clientY, multiplier, luckyClass);
+  showTapEffect(e.clientX, e.clientY, multiplier, luckyClass);
   updateUI();
-  saveState();
+  scheduleSave();
 });
 
-function showTapFeedback(x, y, mult, luckyClass) {
+function showTapEffect(x, y, mult, luckyClass) {
   const el = document.createElement('div');
   el.className = `tap-particle ${luckyClass}`;
   el.innerText = mult > 1 ? `LUCKY x${mult}!` : `+${mult}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 700);
+  setTimeout(() => el.remove(), 650);
 }
 
-// 7. Рендер списков баков и кейсов
+// 3. Обновление интерфейса и шкалы прогресса
+function updateUI() {
+  document.getElementById('clicks-display').innerText = state.clicks.toLocaleString();
+  document.getElementById('coins-display').innerText = state.primeCoins.toLocaleString();
+
+  // Расчёт ранга и шкалы
+  let currentRank = RANKS[0];
+  let nextRank = RANKS[1];
+
+  for (let i = 0; i < RANKS.length; i++) {
+    if (state.clicks >= RANKS[i].min && state.clicks < RANKS[i].max) {
+      currentRank = RANKS[i];
+      nextRank = RANKS[i + 1] || null;
+      break;
+    }
+  }
+
+  document.getElementById('player-status').innerText = currentRank.title;
+
+  if (nextRank) {
+    const needInLevel = nextRank.min - currentRank.min;
+    const currentInLevel = state.clicks - currentRank.min;
+    const percent = Math.min(Math.max((currentInLevel / needInLevel) * 100, 0), 100);
+
+    document.getElementById('level-progress-bar').style.width = `${percent}%`;
+    document.getElementById('level-progress-text').innerText = 
+      `${state.clicks} / ${nextRank.min} до ${nextRank.title}`;
+  } else {
+    document.getElementById('level-progress-bar').style.width = '100%';
+    document.getElementById('level-progress-text').innerText = 'Максимальный уровень';
+  }
+
+  // Обновление текущего бака на экране
+  const current = TANKS[state.equippedTank];
+  document.getElementById('current-tank-name').innerText = current.name;
+  document.getElementById('tank-perk').innerText = current.desc;
+
+  const tankImg = document.getElementById('tank-image');
+  if (!tankImg.src.endsWith(current.image)) {
+    tankImg.style.opacity = '0';
+    setTimeout(() => {
+      tankImg.src = current.image;
+      tankImg.style.opacity = '1';
+    }, 150);
+  }
+
+  renderTanks();
+  renderCases();
+  renderCoupons();
+}
+
+// 4. Отрисовка магазинов
 function renderTanks() {
   const container = document.getElementById('tanks-list');
   container.innerHTML = '';
@@ -224,8 +252,10 @@ function renderTanks() {
     div.innerHTML = `
       <div>
         <strong>${t.name}</strong>
-        <p style="font-size:0.8rem; color:#8e95a5;">${t.desc}</p>
-        <span style="font-size:0.8rem; color:#ffaa00;">${isUnlocked ? 'В коллекции' : `${t.price} PC`}</span>
+        <p style="font-size:0.8rem; color:#8b92a5;">${t.desc}</p>
+        <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">
+          ${isUnlocked ? 'В коллекции' : `${t.price.toLocaleString()} PC`}
+        </span>
       </div>
       <div>
         ${isEquipped 
@@ -251,8 +281,8 @@ function renderCases() {
     div.innerHTML = `
       <div>
         <strong>${c.title}</strong>
-        <p style="font-size:0.8rem; color:#8e95a5;">${c.minCoins}-${c.maxCoins} PC | Шанс купона ${c.couponChance * 100}%</p>
-        <span style="font-size:0.85rem; color:#ff6b00;">Цена: ${c.cost} кликов</span>
+        <p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins}-${c.maxCoins} PC | Купон 10% (${(c.couponChance * 100).toFixed(1)}%)</p>
+        <span style="font-size:0.85rem; color:#ff6b00; font-weight:700;">${c.cost.toLocaleString()} кликов</span>
       </div>
       <button class="item-btn" ${!canAfford ? 'disabled' : ''} onclick="openCase('${c.id}')">Открыть</button>
     `;
@@ -262,8 +292,8 @@ function renderCases() {
 
 function renderCoupons() {
   const container = document.getElementById('coupons-container');
-  if (state.coupons.length === 0) {
-    container.innerHTML = '<p class="empty-text">Вы пока не выбили купоны на кейсы АКБ.</p>';
+  if (!state.coupons || state.coupons.length === 0) {
+    container.innerHTML = '<p class="empty-text">Вы пока не выбили скидочные купоны.</p>';
     return;
   }
   container.innerHTML = '';
@@ -272,15 +302,15 @@ function renderCoupons() {
     div.className = 'item-card';
     div.innerHTML = `
       <div>
-        <strong>${cp.discount} на кейс АКБ</strong>
-        <p style="font-size:0.85rem; color:#ffaa00; font-family:monospace; margin-top:4px;">Промокод: ${cp.code}</p>
+        <strong>Скидка ${cp.discount} на кейс АКБ</strong>
+        <p style="font-size:0.9rem; color:#ffaa00; font-family:monospace; margin-top:4px; font-weight:700;">${cp.code}</p>
       </div>
     `;
     container.appendChild(div);
   });
 }
 
-// 8. Покупка баков и открытие кейсов
+// 5. Действия покупки и кейсов
 window.buyTank = function(id) {
   const tank = TANKS[id];
   if (state.primeCoins >= tank.price && !state.unlockedTanks.includes(id)) {
@@ -289,7 +319,7 @@ window.buyTank = function(id) {
     state.equippedTank = id;
     if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     updateUI();
-    saveState();
+    forceSave();
   }
 };
 
@@ -298,7 +328,7 @@ window.equipTank = function(id) {
     state.equippedTank = id;
     if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
     updateUI();
-    saveState();
+    forceSave();
   }
 };
 
@@ -307,34 +337,33 @@ window.openCase = function(id) {
   if (state.clicks < c.cost) return;
 
   state.clicks -= c.cost;
-
-  // Расчет дропа
   const isCoupon = Math.random() < c.couponChance;
+
   let modalTitle = '';
   let modalDesc = '';
   let modalIcon = '';
 
   if (isCoupon) {
-    const code = `PRIME-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    state.coupons.push({ discount: c.couponDiscount, code });
+    const code = `PRIME-10-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    if (!state.coupons) state.coupons = [];
+    state.coupons.push({ discount: '10%', code });
     modalTitle = 'СУПЕР ДРОП!';
     modalIcon = '🔋';
-    modalDesc = `Вам выпал промокод: ${c.couponDiscount} на кейс для АКБ!\nКод: ${code}`;
+    modalDesc = `Вам выпал промокод на скидку 10% на чехол для АКБ!\nКод: ${code}`;
   } else {
     const wonCoins = Math.floor(Math.random() * (c.maxCoins - c.minCoins + 1)) + c.minCoins;
     state.primeCoins += wonCoins;
-    modalTitle = 'Выпали PrimeCoins!';
+    modalTitle = 'PrimeCoins!';
     modalIcon = '🪙';
-    modalDesc = `Получено +${wonCoins} PrimeCoins на покупку девайсов.`;
+    modalDesc = `Вы получили +${wonCoins} PrimeCoins на покупку девайсов.`;
   }
 
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
   showModal(modalTitle, modalIcon, modalDesc);
   updateUI();
-  saveState();
+  forceSave();
 };
 
-// 9. Модалка
 function showModal(title, icon, desc) {
   document.getElementById('modal-title').innerText = title;
   document.getElementById('modal-icon').innerText = icon;
@@ -344,21 +373,6 @@ function showModal(title, icon, desc) {
 document.getElementById('modal-close').addEventListener('click', () => {
   document.getElementById('drop-modal').classList.add('hidden');
 });
-
-// 10. Обновление интерфейса
-function updateUI() {
-  document.getElementById('clicks-display').innerText = state.clicks.toLocaleString();
-  document.getElementById('coins-display').innerText = state.primeCoins.toLocaleString();
-  document.getElementById('player-status').innerText = getStatusTitle(state.clicks);
-
-  const current = TANKS[state.equippedTank];
-  document.getElementById('current-tank-name').innerText = current.name;
-  document.getElementById('tank-perk').innerText = current.desc;
-
-  renderTanks();
-  renderCases();
-  renderCoupons();
-}
 
 // Навигация
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -370,30 +384,64 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   });
 });
 
-// 11. Бесплатное сохранение в Telegram CloudStorage
-function saveState() {
+// 6. Надёжная синхронизация (localStorage + CloudStorage + Google Таблица)
+let saveTimeout = null;
+
+function scheduleSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(forceSave, 1000);
+}
+
+function forceSave() {
+  const json = JSON.stringify(state);
+  localStorage.setItem('prime_save_v2', json);
+
   if (tg?.CloudStorage) {
-    tg.CloudStorage.setItem('prime_save', JSON.stringify(state));
-  } else {
-    localStorage.setItem('prime_save', JSON.stringify(state));
+    tg.CloudStorage.setItem('prime_save_v2', json);
+  }
+
+  // Отправка в Google Таблицу
+  if (GOOGLE_SHEET_URL) {
+    const payload = {
+      tgId: tg?.initDataUnsafe?.user?.id || "local_test",
+      username: tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "Неизвестный",
+      clicks: state.clicks,
+      primeCoins: state.primeCoins,
+      equippedTank: state.equippedTank,
+      coupons: state.coupons
+    };
+
+    fetch(GOOGLE_SHEET_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
   }
 }
 
+window.addEventListener('beforeunload', forceSave);
+
+// Загрузка сейвов
 function loadState() {
-  if (tg?.CloudStorage) {
-    tg.CloudStorage.getItem('prime_save', (err, val) => {
-      if (!err && val) {
-        try { state = JSON.parse(val); } catch (e) {}
-      }
-      updateUI();
-    });
-  } else {
-    const val = localStorage.getItem('prime_save');
-    if (val) {
-      try { state = JSON.parse(val); } catch (e) {}
-    }
-    updateUI();
+  const local = localStorage.getItem('prime_save_v2') || localStorage.getItem('prime_save');
+  if (local) {
+    try {
+      state = Object.assign(state, JSON.parse(local));
+    } catch (e) {}
   }
+
+  if (tg?.CloudStorage) {
+    tg.CloudStorage.getItem('prime_save_v2', (err, val) => {
+      if (!err && val) {
+        try {
+          state = Object.assign(state, JSON.parse(val));
+          updateUI();
+        } catch (e) {}
+      }
+    });
+  }
+  updateUI();
 }
 
 loadState();
