@@ -5,6 +5,7 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -13,6 +14,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
   height: 100vh;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #app {
@@ -76,6 +78,7 @@ body {
   text-decoration: none;
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .brand-badge.review {
@@ -208,6 +211,10 @@ body {
   cursor: pointer;
   z-index: 2;
   transition: transform 0.06s;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .tank-container:active {
@@ -219,6 +226,9 @@ body {
   max-height: 100%;
   object-fit: contain;
   pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .tank-info {
@@ -282,6 +292,8 @@ body {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .item-btn:disabled {
@@ -389,6 +401,8 @@ body {
   font-size: 0.68rem;
   cursor: pointer;
   gap: 3px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .nav-btn .icon {
@@ -442,4 +456,6 @@ body {
   margin-top: 14px;
   cursor: pointer;
   width: 100%;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
