@@ -397,27 +397,34 @@ function forceSave() {
   }
 
   if (GOOGLE_SHEET_URL) {
-    const realTgId = tg?.initDataUnsafe?.user?.id 
-      ? String(tg.initDataUnsafe.user.id) 
-      : "1235454371";
-      
-    const realUsername = tg?.initDataUnsafe?.user?.username 
-      || tg?.initDataUnsafe?.user?.first_name 
-      || "emtblds";
+    const userInfo = getTelegramUser();
+    const payloadStr = JSON.stringify({
+      tgId: userInfo.id,
+      username: userInfo.name,
+      clicks: state.clicks,
+      primeCoins: state.primeCoins,
+      equippedTank: state.equippedTank,
+      coupons: state.coupons
+    });
 
-    fetch(GOOGLE_SHEET_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        tgId: realTgId,
-        username: realUsername,
-        clicks: state.clicks,
-        primeCoins: state.primeCoins,
-        equippedTank: state.equippedTank,
-        coupons: state.coupons
-      })
-    }).catch(() => {});
+    // Способ для iOS: navigator.sendBeacon или скрытая форма
+    // iOS Safari не блокирует sendBeacon даже при сворачивании приложения
+    let sent = false;
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payloadStr], { type: 'text/plain;charset=UTF-8' });
+      sent = navigator.sendBeacon(GOOGLE_SHEET_URL, blob);
+    }
+
+    // Запасной вариант, если sendBeacon не сработал
+    if (!sent) {
+      fetch(GOOGLE_SHEET_URL, {
+        method: "POST",
+        mode: "no-cors",
+        cache: "no-cache",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: payloadStr
+      }).catch(() => {});
+    }
   }
 }
 
