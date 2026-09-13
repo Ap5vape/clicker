@@ -4,10 +4,13 @@ if (tg) {
   tg.expand();
 }
 
-// ВСТАВЬ СЮДА ССЫЛКУ ИЗ GOOGLE APPS SCRIPT (ЕСЛИ СДЕЛАЛ ТАБЛИЦУ):
+// 1. ТВОЯ ССЫЛКА НА GOOGLE ТАБЛИЦУ
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxrYOz4HwWfM_CPBC055FllTqUE3FZI_ZmntLO5BNLPhWIYbQmY9uzFlrrMP9cjwMAW/exec";
 
-// Состояние игрока
+// 2. Единый постоянный ключ
+const PRIMARY_KEY = 'prime_save_stable';
+
+// Базовое состояние
 let state = {
   clicks: 0,
   primeCoins: 0,
@@ -18,63 +21,14 @@ let state = {
 
 // Справочник баков
 const TANKS = {
-  berserker: {
-    id: 'berserker',
-    name: 'Berserker V2',
-    image: 'assets/berserker_v2.png',
-    price: 0,
-    lucky2: 0,
-    lucky3: 0,
-    desc: 'MTL классика. Базовый обдув'
-  },
-  zeus: {
-    id: 'zeus',
-    name: 'Zeus Sub-Ohm / RTA',
-    image: 'assets/zeus.png',
-    price: 1000,
-    lucky2: 0.15,
-    lucky3: 0,
-    desc: 'Верхний обдув, 15% шанс Lucky x2'
-  },
-  bishop: {
-    id: 'bishop',
-    name: 'Bishop MTL RTA',
-    image: 'assets/bishop.png',
-    price: 2000,
-    lucky2: 0.25,
-    lucky3: 0,
-    desc: 'Тихий обдув, 25% шанс Lucky x2'
-  },
-  siren: {
-    id: 'siren',
-    name: 'Siren 2 GTA',
-    image: 'assets/siren.png',
-    price: 5000,
-    lucky2: 0.35,
-    lucky3: 0.05,
-    desc: 'GTA-система, 35% x2, 5% x3'
-  },
-  fev: {
-    id: 'fev',
-    name: 'Flash-e-Vapor (FeV)',
-    image: 'assets/fev.png',
-    price: 10000,
-    lucky2: 0.40,
-    lucky3: 0.15,
-    desc: 'ТХ и легендарный обдув, 40% x2, 15% x3'
-  },
-  paravozz: {
-    id: 'paravozz',
-    name: 'Paravozz Genesis',
-    image: 'assets/paravozz.png',
-    price: 15000,
-    lucky2: 0.50,
-    lucky3: 0.30,
-    desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3'
-  }
+  berserker: { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, lucky2: 0, lucky3: 0, desc: 'MTL классика. Базовый обдув' },
+  zeus: { id: 'zeus', name: 'Zeus Sub-Ohm / RTA', image: 'assets/zeus.png', price: 1000, lucky2: 0.15, lucky3: 0.00, desc: 'Верхний обдув, 15% шанс Lucky x2' },
+  bishop: { id: 'bishop', name: 'Bishop MTL RTA', image: 'assets/bishop.png', price: 2000, lucky2: 0.25, lucky3: 0.00, desc: 'Тихий обдув, 25% шанс Lucky x2' },
+  siren: { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 5000, lucky2: 0.35, lucky3: 0.05, desc: 'GTA-система, 35% x2, 5% x3' },
+  fev: { id: 'fev', name: 'Flash-e-Vapor (FeV)', image: 'assets/fev.png', price: 10000, lucky2: 0.40, lucky3: 0.15, desc: 'ТХ и легендарный обдув, 40% x2, 15% x3' },
+  paravozz: { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 15000, lucky2: 0.50, lucky3: 0.30, desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3' }
 };
 
-// Сетка рангов
 const RANKS = [
   { min: 0, max: 1000, title: 'Респектовый' },
   { min: 1000, max: 5000, title: 'Локал бой' },
@@ -84,7 +38,6 @@ const RANKS = [
   { min: 30000, max: Infinity, title: 'Легенда пара' }
 ];
 
-// Кейсы: купон теперь строго 10% скидки
 const CASES = [
   { id: 'case_500', title: 'Бюджетный кейс', cost: 500, minCoins: 50, maxCoins: 200, couponChance: 0.015 },
   { id: 'case_1000', title: 'Стандартный кейс', cost: 1000, minCoins: 200, maxCoins: 600, couponChance: 0.02 },
@@ -92,12 +45,13 @@ const CASES = [
   { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 3000, maxCoins: 10000, couponChance: 0.05 }
 ];
 
-// 1. Физика пара (Canvas)
+// Пар (Canvas)
 const canvas = document.getElementById('steam-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
 
 function resizeCanvas() {
+  if (!canvas.parentElement) return;
   canvas.width = canvas.parentElement.clientWidth;
   canvas.height = canvas.parentElement.clientHeight;
 }
@@ -145,34 +99,32 @@ renderSteam();
 function spawnSteam() {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  for (let i = 0; i < 5; i++) {
-    particles.push(new SteamParticle(cx, cy));
-  }
+  for (let i = 0; i < 5; i++) particles.push(new SteamParticle(cx, cy));
 }
 
-// 2. Обработка клика
+// Клик по баку
 const tankTarget = document.getElementById('tank-target');
 tankTarget.addEventListener('pointerdown', (e) => {
-  const current = TANKS[state.equippedTank];
-  let multiplier = 1;
+  const current = TANKS[state.equippedTank] || TANKS.berserker;
+  let mult = 1;
   let luckyClass = '';
 
   const roll = Math.random();
   if (current.lucky3 > 0 && roll < current.lucky3) {
-    multiplier = 3;
+    mult = 3;
     luckyClass = 'lucky-3';
     if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
   } else if (current.lucky2 > 0 && roll < (current.lucky3 + current.lucky2)) {
-    multiplier = 2;
+    mult = 2;
     luckyClass = 'lucky-2';
     if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
   } else {
     if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
   }
 
-  state.clicks += multiplier;
+  state.clicks += mult;
   spawnSteam();
-  showTapEffect(e.clientX, e.clientY, multiplier, luckyClass);
+  showTapEffect(e.clientX, e.clientY, mult, luckyClass);
   updateUI();
   scheduleSave();
 });
@@ -187,15 +139,14 @@ function showTapEffect(x, y, mult, luckyClass) {
   setTimeout(() => el.remove(), 650);
 }
 
-// 3. Обновление интерфейса и шкалы прогресса
+// Обновление интерфейса
 function updateUI() {
-  document.getElementById('clicks-display').innerText = state.clicks.toLocaleString();
-  document.getElementById('coins-display').innerText = state.primeCoins.toLocaleString();
+  document.getElementById('clicks-display').innerText = Number(state.clicks || 0).toLocaleString();
+  document.getElementById('coins-display').innerText = Number(state.primeCoins || 0).toLocaleString();
 
-  // Расчёт ранга и шкалы
+  // Ранг
   let currentRank = RANKS[0];
   let nextRank = RANKS[1];
-
   for (let i = 0; i < RANKS.length; i++) {
     if (state.clicks >= RANKS[i].min && state.clicks < RANKS[i].max) {
       currentRank = RANKS[i];
@@ -205,32 +156,25 @@ function updateUI() {
   }
 
   document.getElementById('player-status').innerText = currentRank.title;
-
   if (nextRank) {
-    const needInLevel = nextRank.min - currentRank.min;
-    const currentInLevel = state.clicks - currentRank.min;
-    const percent = Math.min(Math.max((currentInLevel / needInLevel) * 100, 0), 100);
-
-    document.getElementById('level-progress-bar').style.width = `${percent}%`;
-    document.getElementById('level-progress-text').innerText = 
-      `${state.clicks} / ${nextRank.min} до ${nextRank.title}`;
+    const need = nextRank.min - currentRank.min;
+    const cur = state.clicks - currentRank.min;
+    const pct = Math.min(Math.max((cur / need) * 100, 0), 100);
+    document.getElementById('level-progress-bar').style.width = `${pct}%`;
+    document.getElementById('level-progress-text').innerText = `${state.clicks} / ${nextRank.min} до ${nextRank.title}`;
   } else {
     document.getElementById('level-progress-bar').style.width = '100%';
     document.getElementById('level-progress-text').innerText = 'Максимальный уровень';
   }
 
-  // Обновление текущего бака на экране
-  const current = TANKS[state.equippedTank];
+  // Бак
+  const current = TANKS[state.equippedTank] || TANKS.berserker;
   document.getElementById('current-tank-name').innerText = current.name;
   document.getElementById('tank-perk').innerText = current.desc;
-
+  
   const tankImg = document.getElementById('tank-image');
-  if (!tankImg.src.endsWith(current.image)) {
-    tankImg.style.opacity = '0';
-    setTimeout(() => {
-      tankImg.src = current.image;
-      tankImg.style.opacity = '1';
-    }, 150);
+  if (tankImg && !tankImg.src.includes(current.image)) {
+    tankImg.src = current.image;
   }
 
   renderTanks();
@@ -238,9 +182,9 @@ function updateUI() {
   renderCoupons();
 }
 
-// 4. Отрисовка магазинов
 function renderTanks() {
   const container = document.getElementById('tanks-list');
+  if (!container) return;
   container.innerHTML = '';
 
   Object.values(TANKS).forEach(t => {
@@ -272,6 +216,7 @@ function renderTanks() {
 
 function renderCases() {
   const container = document.getElementById('cases-list');
+  if (!container) return;
   container.innerHTML = '';
 
   CASES.forEach(c => {
@@ -292,6 +237,7 @@ function renderCases() {
 
 function renderCoupons() {
   const container = document.getElementById('coupons-container');
+  if (!container) return;
   if (!state.coupons || state.coupons.length === 0) {
     container.innerHTML = '<p class="empty-text">Вы пока не выбили скидочные купоны.</p>';
     return;
@@ -310,7 +256,6 @@ function renderCoupons() {
   });
 }
 
-// 5. Действия покупки и кейсов
 window.buyTank = function(id) {
   const tank = TANKS[id];
   if (state.primeCoins >= tank.price && !state.unlockedTanks.includes(id)) {
@@ -349,13 +294,13 @@ window.openCase = function(id) {
     state.coupons.push({ discount: '10%', code });
     modalTitle = 'СУПЕР ДРОП!';
     modalIcon = '🔋';
-    modalDesc = `Вам выпал промокод на скидку 10% на чехол для АКБ!\nКод: ${code}`;
+    modalDesc = `Вам выпал промокод 10% на кейс для АКБ!\nКод: ${code}`;
   } else {
     const wonCoins = Math.floor(Math.random() * (c.maxCoins - c.minCoins + 1)) + c.minCoins;
     state.primeCoins += wonCoins;
     modalTitle = 'PrimeCoins!';
     modalIcon = '🪙';
-    modalDesc = `Вы получили +${wonCoins} PrimeCoins на покупку девайсов.`;
+    modalDesc = `Вы получили +${wonCoins} PrimeCoins на покупки.`;
   }
 
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -384,9 +329,8 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   });
 });
 
-// 6. Надёжная синхронизация (localStorage + CloudStorage + Google Таблица)
+// 3. Сохранение и синхронизация
 let saveTimeout = null;
-
 function scheduleSave() {
   if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(forceSave, 1000);
@@ -394,82 +338,71 @@ function scheduleSave() {
 
 function forceSave() {
   const json = JSON.stringify(state);
-  localStorage.setItem('prime_save_v2', json);
+  localStorage.setItem(PRIMARY_KEY, json);
 
   if (tg?.CloudStorage) {
-    tg.CloudStorage.setItem('prime_save_v2', json);
+    tg.CloudStorage.setItem(PRIMARY_KEY, json);
   }
 
-  // Отправка в Google Таблицу
   if (GOOGLE_SHEET_URL) {
-    const payload = {
-      tgId: tg?.initDataUnsafe?.user?.id || "local_test",
-      username: tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "Неизвестный",
-      clicks: state.clicks,
-      primeCoins: state.primeCoins,
-      equippedTank: state.equippedTank,
-      coupons: state.coupons
-    };
+    const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "1765371186";
+    const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "DNA_Sergeant";
 
     fetch(GOOGLE_SHEET_URL, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        tgId: tgId,
+        username: username,
+        clicks: state.clicks,
+        primeCoins: state.primeCoins,
+        equippedTank: state.equippedTank,
+        coupons: state.coupons
+      })
     }).catch(() => {});
   }
 }
 
-window.addEventListener('beforeunload', forceSave);
-
-// Загрузка сейвов
+// 4. Восстановление данных
 function loadState() {
-  const local = localStorage.getItem('prime_save_v2') || localStorage.getItem('prime_save');
-  if (local) {
+  // Пытаемся достать данные изо всех возможных старых ключей
+  const saved = localStorage.getItem(PRIMARY_KEY) || 
+                localStorage.getItem('prime_vapor_save_main') || 
+                localStorage.getItem('prime_save_v2') || 
+                localStorage.getItem('prime_save');
+
+  if (saved) {
     try {
-      state = Object.assign(state, JSON.parse(local));
+      const parsed = JSON.parse(saved);
+      state = Object.assign(state, parsed);
     } catch (e) {}
   }
 
-  if (tg?.CloudStorage) {
-    tg.CloudStorage.getItem('prime_save_v2', (err, val) => {
-      if (!err && val) {
-        try {
-          state = Object.assign(state, JSON.parse(val));
-          updateUI();
-        } catch (e) {}
-      }
-    });
-  }
-  updateUI();
-}
-
-function loadState() {
-  // 1. Сначала моментально поднимаем локальный сейв, чтобы экран не мигал
-  const local = localStorage.getItem('prime_vapor_save_main') || localStorage.getItem('prime_save_v2');
-  if (local) {
-    try {
-      state = Object.assign(state, JSON.parse(local));
-    } catch (e) {}
-  }
-  updateUI();
-
-  // 2. Фоном запрашиваем актуальные данные из Google Таблицы (где ты мог накрутить очки)
-  const tgId = tg?.initDataUnsafe?.user?.id;
-  if (GOOGLE_SHEET_URL && tgId) {
+  // Принудительно проверяем таблицу Google
+  if (GOOGLE_SHEET_URL) {
+    const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "1765371186";
     fetch(`${GOOGLE_SHEET_URL}?tgId=${tgId}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === "ok") {
-          // Если ты в таблице руками поставил цифры больше — игра примет их!
-          if (data.clicks > state.clicks) state.clicks = data.clicks;
-          if (data.primeCoins > state.primeCoins) state.primeCoins = data.primeCoins;
-          if (data.equippedTank) state.equippedTank = data.equippedTank;
-          
+          // Если в таблице значения отличаются от нуля — ставим их
+          if (data.clicks !== undefined) state.clicks = Number(data.clicks);
+          if (data.primeCoins !== undefined) state.primeCoins = Number(data.primeCoins);
+          if (data.equippedTank) {
+            state.equippedTank = data.equippedTank;
+            if (!state.unlockedTanks.includes(data.equippedTank)) {
+              state.unlockedTanks.push(data.equippedTank);
+            }
+          }
           updateUI();
-          localStorage.setItem('prime_vapor_save_main', JSON.stringify(state));
+          localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
         }
       })
       .catch(() => {});
   }
+
+  updateUI();
 }
+
+loadState();
