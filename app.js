@@ -235,7 +235,7 @@ function updateUI() {
   if (clicksEl) clicksEl.innerText = Number(state.clicks || 0).toLocaleString();
   if (coinsEl) coinsEl.innerText = Number(state.primeCoins || 0).toLocaleString();
 
-  // Ранг и прогресс-бар
+  // Ранг и шкала прогресса
   let currentRank = RANKS[0];
   let nextRank = RANKS[1];
   for (let i = 0; i < RANKS.length; i++) {
@@ -453,27 +453,27 @@ function forceSave() {
 
   if (GOOGLE_SHEET_URL) {
     const userInfo = getTelegramUser();
+    const payload = JSON.stringify({
+      tgId: userInfo.id,
+      username: userInfo.name,
+      clicks: state.clicks,
+      primeCoins: state.primeCoins,
+      equippedTank: state.equippedTank,
+      coupons: state.coupons
+    });
 
     fetch(GOOGLE_SHEET_URL, {
       method: "POST",
       mode: "no-cors",
-      keepalive: true,
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        tgId: userInfo.id,
-        username: userInfo.name,
-        clicks: state.clicks,
-        primeCoins: state.primeCoins,
-        equippedTank: state.equippedTank,
-        coupons: state.coupons
-      })
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "data=" + encodeURIComponent(payload)
     }).catch(() => {});
   }
 }
 
 window.addEventListener('beforeunload', forceSave);
 
-// Загрузка
+// Восстановление данных
 function loadState() {
   const saved = localStorage.getItem(PRIMARY_KEY) || 
                 localStorage.getItem('prime_vapor_save_main') || 
