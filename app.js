@@ -474,7 +474,24 @@ function forceSave() {
 window.addEventListener('beforeunload', forceSave);
 
 // Восстановление данных
+// Глобальный обработчик для гарантированного чтения из таблицы без CORS-ошибок
+window.onGoogleSheetDataLoaded = function(data) {
+  if (data && data.status === "ok") {
+    state.clicks = Number(data.clicks) || 0;
+    state.primeCoins = Number(data.primeCoins) || 0;
+    if (data.equippedTank) {
+      state.equippedTank = data.equippedTank;
+      if (!state.unlockedTanks.includes(data.equippedTank)) {
+        state.unlockedTanks.push(data.equippedTank);
+      }
+    }
+    updateUI();
+    localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
+  }
+};
+
 function loadState() {
+  // 1. Быстрый локальный старт
   const saved = localStorage.getItem(PRIMARY_KEY) || 
                 localStorage.getItem('prime_vapor_save_main') || 
                 localStorage.getItem('prime_save_v2') || 
@@ -485,36 +502,13 @@ function loadState() {
       state = Object.assign(state, JSON.parse(saved));
     } catch (e) {}
   }
+  updateUI();
 
+  // 2. Чтение из таблицы через динамический скрипт (обходит любые CORS/Safari блокировки)
   if (GOOGLE_SHEET_URL) {
     const userInfo = getTelegramUser();
-
-    fetch(`${GOOGLE_SHEET_URL}?tgId=${userInfo.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.status === "ok") {
-          if (data.clicks !== undefined && Number(data.clicks) >= state.clicks) {
-            state.clicks = Number(data.clicks);
-          }
-          if (data.primeCoins !== undefined && Number(data.primeCoins) >= state.primeCoins) {
-            state.primeCoins = Number(data.primeCoins);
-          }
-          if (data.equippedTank) {
-            state.equippedTank = data.equippedTank;
-            if (!state.unlockedTanks.includes(data.equippedTank)) {
-              state.unlockedTanks.push(data.equippedTank);
-            }
-          }
-          updateUI();
-          localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
-        }
-      })
-      .catch(() => {});
-
-    forceSave();
+    const script = document.createElement('script');
+    script.src = `${GOOGLE_SHEET_URL}?tgId=${userInfo.id}&callback=onGoogleSheetDataLoaded&t=${Date.now()}`;
+    document.head.appendChild(script);
   }
-
-  updateUI();
 }
-
-loadState();
