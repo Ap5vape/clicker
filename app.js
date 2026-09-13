@@ -5,7 +5,7 @@ if (tg) {
 }
 
 // 1. Ссылка на веб-приложение Google Apps Script
-const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxrYOz4HwWfM_CPBC055FIlTqUE3FZI_ZmntLO5BNLPhWIYbQmY9uzFIrrMP9cjwMAW/exec";
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
 
 // 2. Постоянный ключ для сохранения
 const PRIMARY_KEY = 'prime_save_stable';
