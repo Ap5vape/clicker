@@ -5,7 +5,7 @@ if (tg) {
 }
 
 // ВСТАВЬ СЮДА ССЫЛКУ ИЗ GOOGLE APPS SCRIPT (ЕСЛИ СДЕЛАЛ ТАБЛИЦУ):
-const GOOGLE_SHEET_URL = ""; 
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxrYOz4HwWfM_CPBC055FIlTqUE3FZI_ZmntLO5BNLPhWIYbQmY9uzFIrrMP9cjwMAW/exec";
 
 // Состояние игрока
 let state = {
