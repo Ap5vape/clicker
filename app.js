@@ -471,10 +471,7 @@ function forceSave() {
   }
 }
 
-window.addEventListener('beforeunload', forceSave);
-
 // Восстановление данных
-// Глобальный обработчик для гарантированного чтения из таблицы без CORS-ошибок
 window.onGoogleSheetDataLoaded = function(data) {
   if (data && data.status === "ok") {
     state.clicks = Number(data.clicks) || 0;
@@ -491,7 +488,7 @@ window.onGoogleSheetDataLoaded = function(data) {
 };
 
 function loadState() {
-  // 1. Быстрый локальный старт
+  // 1. Быстрый локальный старт из кэша
   const saved = localStorage.getItem(PRIMARY_KEY) || 
                 localStorage.getItem('prime_vapor_save_main') || 
                 localStorage.getItem('prime_save_v2') || 
@@ -504,7 +501,7 @@ function loadState() {
   }
   updateUI();
 
-  // 2. Чтение из таблицы через динамический скрипт (обходит любые CORS/Safari блокировки)
+  // 2. Чтение из таблицы через динамический JSONP-тег (обходит ограничения CORS и iOS Safari)
   if (GOOGLE_SHEET_URL) {
     const userInfo = getTelegramUser();
     const script = document.createElement('script');
@@ -512,3 +509,6 @@ function loadState() {
     document.head.appendChild(script);
   }
 }
+
+// Запуск инициализации при старте страницы
+loadState();
