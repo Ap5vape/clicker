@@ -9,16 +9,25 @@
 </head>
 <body>
   <div id="app">
-    <!-- Шапка со статусом и балансом -->
+    <!-- Шапка с прогресс-баром уровня -->
     <header class="header">
-      <div class="status-badge" id="player-status">Респектовый</div>
+      <div class="level-wrapper">
+        <div class="status-header">
+          <span class="status-badge" id="player-status">Респектовый</span>
+          <span class="next-level-hint" id="level-progress-text">0 / 1000 до Локал бой</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="level-progress-bar"></div>
+        </div>
+      </div>
+
       <div class="stats-row">
         <div class="stat-card">
-          <span class="stat-label">Клики:</span>
+          <span class="stat-label">Клики</span>
           <span class="stat-val" id="clicks-display">0</span>
         </div>
         <div class="stat-card prime">
-          <span class="stat-label">PrimeCoins:</span>
+          <span class="stat-label">PrimeCoins</span>
           <span class="stat-val" id="coins-display">0</span>
         </div>
       </div>
@@ -27,55 +36,74 @@
     <!-- Игровая область -->
     <main class="view-tab active" id="tab-game">
       <div class="tank-viewport">
-        <!-- Холст для реалистичного пара за баком -->
         <canvas id="steam-canvas"></canvas>
         <div class="tank-container" id="tank-target">
-          <div class="tank-halo"></div>
           <img id="tank-image" src="assets/berserker_v2.png" alt="Tank">
         </div>
       </div>
       <div class="tank-info">
         <h2 id="current-tank-name">Berserker V2</h2>
-        <p id="tank-perk">Обычный обдув</p>
+        <p id="tank-perk">MTL классика. Базовый обдув</p>
       </div>
     </main>
 
-    <!-- Вкладка выбора баков -->
+    <!-- Вкладка баков -->
     <section class="view-tab" id="tab-tanks">
-      <h2>Коллекция баков</h2>
+      <div class="section-head">
+        <h2>Коллекция баков</h2>
+        <p>Чем лучше бак, тем выше шанс Lucky x2 и x3</p>
+      </div>
       <div class="grid" id="tanks-list"></div>
     </section>
 
     <!-- Вкладка кейсов -->
     <section class="view-tab" id="tab-cases">
-      <h2>Кейсы за клики</h2>
+      <div class="section-head">
+        <h2>Кейсы за клики</h2>
+        <p>Фарми PrimeCoins и выбивай купоны 10% на чехлы для АКБ</p>
+      </div>
       <div class="grid" id="cases-list"></div>
     </section>
 
-    <!-- Вкладка инвентаря купонов -->
+    <!-- Вкладка купонов -->
     <section class="view-tab" id="tab-coupons">
-      <h2>Мои купоны</h2>
+      <div class="section-head">
+        <h2>Твои скидки</h2>
+        <p>Покажи промокод при заказе чехла для аккумуляторов</p>
+      </div>
       <div class="coupons-list" id="coupons-container">
-        <p class="empty-text">Вы пока не выбили купоны на кейсы АКБ.</p>
+        <p class="empty-text">Вы пока не выбили скидочные купоны.</p>
       </div>
     </section>
 
-    <!-- Нижняя навигация -->
+    <!-- Нижняя панель навигации -->
     <nav class="bottom-nav">
-      <button class="nav-btn active" data-tab="tab-game">Кликер</button>
-      <button class="nav-btn" data-tab="tab-tanks">Баки</button>
-      <button class="nav-btn" data-tab="tab-cases">Кейсы</button>
-      <button class="nav-btn" data-tab="tab-coupons">Купоны</button>
+      <button class="nav-btn active" data-tab="tab-game">
+        <span class="icon">💨</span>
+        <span>Бак</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-tanks">
+        <span class="icon">🛠</span>
+        <span>Баки</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-cases">
+        <span class="icon">📦</span>
+        <span>Кейсы</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-coupons">
+        <span class="icon">🎟</span>
+        <span>Купоны</span>
+      </button>
     </nav>
   </div>
 
-  <!-- Модалка выпадения дропа -->
+  <!-- Модальное окно лутбокса -->
   <div class="modal hidden" id="drop-modal">
-    <div class="modal-content">
+    <div class="modal-content animate-pop">
+      <div class="drop-icon-bounce" id="modal-icon">📦</div>
       <h3 id="modal-title">Дроп!</h3>
-      <div class="drop-icon" id="modal-icon">📦</div>
       <p id="modal-desc">Вы получили...</p>
-      <button class="primary-btn" id="modal-close">Забрать</button>
+      <button class="primary-btn" id="modal-close">Забрать в инвентарь</button>
     </div>
   </div>
 
