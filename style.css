@@ -459,3 +459,23 @@ body {
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
+.screen-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
+  background: radial-gradient(circle, rgba(255, 170, 0, 0.25) 0%, transparent 60%);
+  animation: flashFade 0.4s ease-out forwards;
+}
+
+.screen-flash.x3 {
+  background: radial-gradient(circle, rgba(255, 51, 68, 0.35) 0%, transparent 60%);
+}
+
+@keyframes flashFade {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
