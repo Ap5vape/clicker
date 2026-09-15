@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Prime Vapor Clicker</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
   <div id="app">
-    <!-- Брендинг Prime Vapor -->
     <div class="brand-bar">
       <div class="brand-info">
         <img src="assets/primeava.png" alt="Prime Vapor" class="brand-logo">
@@ -24,12 +23,11 @@
       </div>
     </div>
 
-    <!-- Шапка с прогресс-баром уровня -->
     <header class="header">
       <div class="level-wrapper">
         <div class="status-header">
           <span class="status-badge" id="player-status">Респектовый</span>
-          <span class="next-level-hint" id="level-progress-text">0 / 1000 до Локал бой</span>
+          <span class="next-level-hint" id="level-progress-text">0 / 2000 до Локал бой</span>
         </div>
         <div class="progress-track">
           <div class="progress-fill" id="level-progress-bar"></div>
@@ -48,7 +46,6 @@
       </div>
     </header>
 
-    <!-- 1. Игровая область -->
     <main class="view-tab active" id="tab-game">
       <div class="tank-viewport">
         <canvas id="steam-canvas"></canvas>
@@ -62,46 +59,14 @@
       </div>
     </main>
 
-    <!-- 2. Вкладка заданий -->
-    <section class="view-tab" id="tab-tasks">
-      <div class="section-head">
-        <h2>Задания комьюнити</h2>
-        <p>Выполняй квесты и получай PrimeCoins на прокачку</p>
-      </div>
-      <div class="grid" id="tasks-list"></div>
-    </section>
-
-    <!-- 3. Вкладка топа -->
     <section class="view-tab" id="tab-top">
       <div class="section-head">
         <h2>Топ игроков</h2>
         <p>Лучшие койлбилдеры и коллекционеры пара</p>
       </div>
-      <div class="leaderboard" id="leaderboard-list">
-        <div class="leader-item highlight">
-          <span class="leader-rank">🏆 1</span>
-          <span class="leader-name">@DNA_Sergeant</span>
-          <span class="leader-score">19,000+</span>
-        </div>
-        <div class="leader-item">
-          <span class="leader-rank">🥈 2</span>
-          <span class="leader-name">@APOSTOLIC444</span>
-          <span class="leader-score">15,818</span>
-        </div>
-        <div class="leader-item">
-          <span class="leader-rank">🥉 3</span>
-          <span class="leader-name">@Eb_lan19</span>
-          <span class="leader-score">7,269</span>
-        </div>
-        <div class="leader-item">
-          <span class="leader-rank">4</span>
-          <span class="leader-name">@jamalkaa</span>
-          <span class="leader-score">507</span>
-        </div>
-      </div>
+      <div class="leaderboard" id="leaderboard-list"></div>
     </section>
 
-    <!-- 4. Вкладка баков -->
     <section class="view-tab" id="tab-tanks">
       <div class="section-head">
         <h2>Коллекция баков</h2>
@@ -110,35 +75,29 @@
       <div class="grid" id="tanks-list"></div>
     </section>
 
-    <!-- 5. Вкладка кейсов -->
     <section class="view-tab" id="tab-cases">
       <div class="section-head">
         <h2>Кейсы за клики</h2>
-        <p>Фарми PrimeCoins и выбивай купоны 10% на чехлы для АКБ</p>
+        <p>Фарми PrimeCoins и выбивай купоны на чехлы для АКБ</p>
       </div>
       <div class="grid" id="cases-list"></div>
     </section>
 
-    <!-- 6. Вкладка купонов -->
     <section class="view-tab" id="tab-coupons">
       <div class="section-head">
-        <h2>Твои скидки</h2>
-        <p>Покажи промокод при заказе чехла для аккумуляторов</p>
+        <h2>Кейсы для АКБ</h2>
+        <p>Наши кастомные карбоновые кейсы для аккумуляторов 18650.</p>
+        <a href="https://ap5vape.github.io/Prime/" target="_blank" class="primary-btn" style="display:inline-block; margin-top:10px; text-decoration:none; box-sizing:border-box;">Перейти в магазин</a>
       </div>
-      <div class="coupons-list" id="coupons-container">
+      <div class="coupons-list" id="coupons-container" style="margin-top: 15px;">
         <p class="empty-text">Вы пока не выбили скидочные купоны.</p>
       </div>
     </section>
 
-    <!-- Нижняя панель навигации -->
     <nav class="bottom-nav">
       <button class="nav-btn active" data-tab="tab-game">
         <span class="icon">💨</span>
         <span>Бак</span>
-      </button>
-      <button class="nav-btn" data-tab="tab-tasks">
-        <span class="icon">🎯</span>
-        <span>Квесты</span>
       </button>
       <button class="nav-btn" data-tab="tab-top">
         <span class="icon">🏆</span>
@@ -153,13 +112,12 @@
         <span>Кейсы</span>
       </button>
       <button class="nav-btn" data-tab="tab-coupons">
-        <span class="icon">🎟</span>
-        <span>Купоны</span>
+        <span class="icon">🔋</span>
+        <span>Магазин</span>
       </button>
     </nav>
   </div>
 
-  <!-- Модальное окно лутбокса -->
   <div class="modal hidden" id="drop-modal">
     <div class="modal-content animate-pop">
       <div class="drop-icon-bounce" id="modal-icon">📦</div>
@@ -169,6 +127,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=35"></script>
 </body>
 </html>
