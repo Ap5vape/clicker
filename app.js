@@ -253,11 +253,8 @@ function renderLeaderboard() {
   const container = document.getElementById('leaderboard-list');
   if (!container) return;
 
+  // Оставляем в массиве только текущего игрока
   const board = [
-    { name: '@DNA_Sergeant', clicks: 4152000 },
-    { name: '@APOSTOLIC444', clicks: 666600 },
-    { name: '@Eb_lan19', clicks: 72690 },
-    { name: '@jamalkaa', clicks: 15507 },
     { name: currentUser.name, clicks: state.clicks, isMe: true }
   ];
 
