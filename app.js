@@ -24,10 +24,10 @@ function getTelegramUser() {
     };
   }
 
-  let guestId = localStorage.getItem('prime_guest_uid_v6');
+  let guestId = localStorage.getItem('prime_guest_uid_v7');
   if (!guestId) {
     guestId = "guest_" + Math.random().toString(36).substring(2, 9);
-    localStorage.setItem('prime_guest_uid_v6', guestId);
+    localStorage.setItem('prime_guest_uid_v7', guestId);
   }
 
   return {
@@ -37,15 +37,14 @@ function getTelegramUser() {
 }
 
 const currentUser = getTelegramUser();
-const PRIMARY_KEY = `prime_acc_${currentUser.id}_v6`;
+const PRIMARY_KEY = `prime_acc_${currentUser.id}_v7`;
 
 let state = {
   clicks: 0,
   primeCoins: 0,
   equippedTank: 'berserker',
   unlockedTanks: ['berserker'],
-  coupons: [],
-  completedTasks: []
+  coupons: []
 };
 
 const TANKS = {
@@ -178,6 +177,14 @@ if (tankTarget) {
     state.clicks += mult;
     spawnSteam();
     showTapEffect(e.clientX, e.clientY, mult, luckyClass);
+
+    if (mult > 1) {
+      const flash = document.createElement('div');
+      flash.className = `screen-flash ${mult === 3 ? 'x3' : ''}`;
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 400);
+    }
+
     updateUI();
     scheduleSave();
   });
@@ -239,7 +246,6 @@ function updateUI() {
   renderTanks();
   renderCases();
   renderCoupons();
-  renderTasks();
   renderLeaderboard();
 }
 
@@ -274,82 +280,6 @@ function renderLeaderboard() {
     container.appendChild(div);
   });
 }
-
-function renderTasks() {
-  const container = document.getElementById('tasks-list');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const isReviewDone = state.completedTasks && state.completedTasks.includes('sub_review');
-  const isMainDone = state.completedTasks && state.completedTasks.includes('sub_main');
-
-  const divReview = document.createElement('div');
-  divReview.className = 'item-card';
-  divReview.innerHTML = `
-    <div>
-      <strong>Подписка на Prime Review</strong>
-      <p style="font-size:0.8rem; color:#8b92a5;">Канал с обзорами девайсов</p>
-      <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">+200 PrimeCoins</span>
-    </div>
-    <div class="task-btn-group">
-      ${isReviewDone
-        ? '<button class="item-btn equipped" disabled>Получено</button>'
-        : `<a href="https://t.me/PrimeVapor_Review" target="_blank" class="item-btn" style="text-decoration:none;">Канал</a>
-           <button class="item-btn check" onclick="verifySubServer('@PrimeVapor_Review', 'sub_review', 200)">Проверить</button>`
-      }
-    </div>
-  `;
-  container.appendChild(divReview);
-
-  const divMain = document.createElement('div');
-  divMain.className = 'item-card';
-  divMain.innerHTML = `
-    <div>
-      <strong>Комьюнити Prime Vapor</strong>
-      <p style="font-size:0.8rem; color:#8b92a5;">Главное сообщество</p>
-      <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">+100 PrimeCoins</span>
-    </div>
-    <div class="task-btn-group">
-      ${isMainDone
-        ? '<button class="item-btn equipped" disabled>Получено</button>'
-        : `<a href="https://t.me/Prime_Vapor" target="_blank" class="item-btn" style="text-decoration:none;">Канал</a>
-           <button class="item-btn check" onclick="verifySubServer('@Prime_Vapor', 'sub_main', 100)">Проверить</button>`
-      }
-    </div>
-  `;
-  container.appendChild(divMain);
-}
-
-window.onSubChecked = function(data) {
-  if (data && data.status === "ok" && data.isMember) {
-    if (!state.completedTasks) state.completedTasks = [];
-    if (!state.completedTasks.includes(data.taskId)) {
-      state.completedTasks.push(data.taskId);
-      state.primeCoins += (data.reward || 0);
-
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-      showModal("Награда получена!", "🪙", `Подписка подтверждена! Начислено +${data.reward} PrimeCoins.`);
-      updateUI();
-      forceSave();
-    }
-  } else {
-    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
-    showModal("Не подписан", "❌", "Бот пока не видит подписку. Подпишитесь на канал и нажмите кнопку проверки.");
-  }
-};
-
-window.verifySubServer = function(channelUsername, taskId, reward) {
-  if (currentUser.id.startsWith("guest_")) {
-    showModal("Ошибка", "⚠️", "Запустите мини-апп из приложения Telegram.");
-    return;
-  }
-
-  showModal("Проверка...", "⏳", "Связываемся с Telegram через сервер...");
-
-  const script = document.createElement('script');
-  script.src = `${GOOGLE_SHEET_URL}?action=check_sub&channel=${channelUsername}&tgId=${currentUser.id}&taskId=${taskId}&reward=${reward}&callback=onSubChecked&t=${Date.now()}`;
-  document.head.appendChild(script);
-};
 
 function renderTanks() {
   const container = document.getElementById('tanks-list');
@@ -417,7 +347,7 @@ function renderCoupons() {
     div.className = 'item-card';
     div.innerHTML = `
       <div>
-        <strong>Скидка ${cp.discount} на кейс АКБ</strong>
+        <strong>Скидка ${cp.discount} на заказ</strong>
         <p style="font-size:0.9rem; color:#ffaa00; font-family:monospace; margin-top:4px; font-weight:700;">${cp.code}</p>
       </div>
     `;
@@ -524,8 +454,7 @@ function forceSave() {
       clicks: state.clicks,
       primeCoins: state.primeCoins,
       equippedTank: state.equippedTank,
-      coupons: state.coupons,
-      completedTasks: state.completedTasks
+      coupons: state.coupons
     });
 
     fetch(GOOGLE_SHEET_URL, {
@@ -548,7 +477,6 @@ window.onGoogleSheetDataLoaded = function(data) {
       }
     }
     if (data.coupons) state.coupons = data.coupons;
-    if (data.completedTasks) state.completedTasks = data.completedTasks;
 
     updateUI();
     localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
@@ -558,8 +486,7 @@ window.onGoogleSheetDataLoaded = function(data) {
       primeCoins: 0,
       equippedTank: 'berserker',
       unlockedTanks: ['berserker'],
-      coupons: [],
-      completedTasks: []
+      coupons: []
     };
     updateUI();
     forceSave();
@@ -573,6 +500,7 @@ function loadState() {
   localStorage.removeItem('prime_save');
   localStorage.removeItem('prime_save_v3_reset');
   localStorage.removeItem(`prime_acc_${currentUser.id}_v4`);
+  localStorage.removeItem(`prime_acc_${currentUser.id}_v6`);
 
   const saved = localStorage.getItem(PRIMARY_KEY);
   if (saved) {
