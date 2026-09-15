@@ -6,14 +6,15 @@ if (tg) {
 
 // 1. Конфигурация
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
-const PRIMARY_KEY = 'prime_save_stable';
 
-// Бот и каналы
+// Новый ключ хранилища для полного сброса прогресса у всех игроков
+const PRIMARY_KEY = 'prime_save_v3_reset';
+
 const BOT_TOKEN = "8978900644:AAH_vRgnhG0JSTl_pp1TXfx-eme8xF2_OS4";
 const CHANNEL_REVIEW = "@PrimeVapor_Review";
 const CHANNEL_MAIN = "@Prime_Vapor";
 
-// Состояние игрока
+// Чистое состояние игрока
 let state = {
   clicks: 0,
   primeCoins: 0,
@@ -23,35 +24,45 @@ let state = {
   completedTasks: []
 };
 
-// Справочник баков
+// 16 баков: ребаланс шансов (урезаны x2/x3) и плавная прогрессия цен
 const TANKS = {
-  berserker: { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, lucky2: 0, lucky3: 0, desc: 'MTL классика. Базовый обдув' },
-  zeus: { id: 'zeus', name: 'Zeus Sub-Ohm / RTA', image: 'assets/zeus.png', price: 1000, lucky2: 0.15, lucky3: 0.00, desc: 'Верхний обдув, 15% шанс Lucky x2' },
-  bishop: { id: 'bishop', name: 'Bishop MTL RTA', image: 'assets/bishop.png', price: 2000, lucky2: 0.25, lucky3: 0.00, desc: 'Тихий обдув, 25% шанс Lucky x2' },
-  siren: { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 5000, lucky2: 0.35, lucky3: 0.05, desc: 'GTA-система, 35% x2, 5% x3' },
-  fev: { id: 'fev', name: 'Flash-e-Vapor (FeV)', image: 'assets/fev.png', price: 10000, lucky2: 0.40, lucky3: 0.15, desc: 'ТХ и легендарный обдув, 40% x2, 15% x3' },
-  paravozz: { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 15000, lucky2: 0.50, lucky3: 0.30, desc: 'Генезис на сетке: 50% шанс x2, 30% шанс x3' }
+  berserker: { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, lucky2: 0.00, lucky3: 0.00, desc: 'MTL классика. Базовый обдув' },
+  ares:      { id: 'ares', name: 'Innokin Ares 2', image: 'assets/ares.png', price: 300, lucky2: 0.04, lucky3: 0.00, desc: 'Простая регулировка обдува, 4% Lucky x2' },
+  siren:     { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 750, lucky2: 0.07, lucky3: 0.00, desc: 'GTA-система, 7% Lucky x2' },
+  hastur:    { id: 'hastur', name: 'Cthulhu Hastur Mini', image: 'assets/hastur.png', price: 1500, lucky2: 0.10, lucky3: 0.00, desc: 'Компактная купольная камера, 10% Lucky x2' },
+  zeus:      { id: 'zeus', name: 'Zeus Sub-Ohm / RTA', image: 'assets/zeus.png', price: 2500, lucky2: 0.12, lucky3: 0.01, desc: 'Верхний забор воздуха, 12% x2, 1% x3' },
+  bishop:    { id: 'bishop', name: 'Bishop MTL RTA', image: 'assets/bishop.png', price: 4000, lucky2: 0.14, lucky3: 0.02, desc: 'Бесшумная боковая подача, 14% x2, 2% x3' },
+  neeko:     { id: 'neeko', name: 'Aspire Neeko RTA', image: 'assets/neeko.png', price: 6500, lucky2: 0.16, lucky3: 0.03, desc: 'Множество сменных жиклеров, 16% x2, 3% x3' },
+  pioneer:   { id: 'pioneer', name: 'Pioneer MTL RTA', image: 'assets/pioneer.png', price: 9500, lucky2: 0.18, lucky3: 0.04, desc: 'Точная вкусопередача, 18% x2, 4% x3' },
+  kayfun_lite:{ id: 'kayfun_lite', name: 'Kayfun Lite Plus', image: 'assets/kayfun.png', price: 14000, lucky2: 0.20, lucky3: 0.05, desc: 'Немецкая легенда сигаретной тяги, 20% x2, 5% x3' },
+  dvarw:     { id: 'dvarw', name: 'Dvarw MTL FL', image: 'assets/dvarw.png', price: 20000, lucky2: 0.22, lucky3: 0.06, desc: 'Минимализм и плотный сухой пар, 22% x2, 6% x3' },
+  sputnik:   { id: 'sputnik', name: 'Sputnik RTA', image: 'assets/sputnik.png', price: 28000, lucky2: 0.24, lucky3: 0.07, desc: 'Кастомные воздуховоды, 24% x2, 7% x3' },
+  fev:       { id: 'fev', name: 'Flash-e-Vapor V4.5S+', image: 'assets/fev.png', price: 38000, lucky2: 0.26, lucky3: 0.08, desc: 'Эталонный ТХ и длинный паропровод, 26% x2, 8% x3' },
+  taifun:    { id: 'taifun', name: 'Taifun GTR', image: 'assets/taifun.png', price: 50000, lucky2: 0.28, lucky3: 0.10, desc: 'Двухканальный обдув High-End класса, 28% x2, 10% x3' },
+  byka:      { id: 'byka', name: 'BY-ka v.9', image: 'assets/byka.png', price: 65000, lucky2: 0.30, lucky3: 0.12, desc: 'Удобный доступ к базе и перекрытие жижи, 30% x2, 12% x3' },
+  millennium:{ id: 'millennium', name: 'Millennium RTA', image: 'assets/millennium.png', price: 85000, lucky2: 0.32, lucky3: 0.14, desc: 'Итальянский кастом с 3 куполами, 32% x2, 14% x3' },
+  paravozz:  { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 120000, lucky2: 0.35, lucky3: 0.18, desc: 'Генезис на сетке: абсолютный топ, 35% x2, 18% x3' }
 };
 
 // Сетка рангов
 const RANKS = [
-  { min: 0, max: 1000, title: 'Респектовый' },
-  { min: 1000, max: 5000, title: 'Локал бой' },
-  { min: 5000, max: 10000, title: 'Вейпер' },
-  { min: 10000, max: 20000, title: 'Тру вейпер' },
-  { min: 20000, max: 30000, title: 'PrimeВейпер' },
-  { min: 30000, max: Infinity, title: 'Легенда пара' }
+  { min: 0, max: 1500, title: 'Респектовый' },
+  { min: 1500, max: 7000, title: 'Локал бой' },
+  { min: 7000, max: 20000, title: 'Вейпер' },
+  { min: 20000, max: 50000, title: 'Тру вейпер' },
+  { min: 50000, max: 100000, title: 'PrimeВейпер' },
+  { min: 100000, max: Infinity, title: 'Легенда пара' }
 ];
 
-// Справочник кейсов
+// Кейсы: шанс купона урезан в 2 раза
 const CASES = [
-  { id: 'case_500', title: 'Бюджетный кейс', cost: 500, minCoins: 50, maxCoins: 200, couponChance: 0.015 },
-  { id: 'case_1000', title: 'Стандартный кейс', cost: 1000, minCoins: 200, maxCoins: 600, couponChance: 0.02 },
-  { id: 'case_5000', title: 'Опытный кейс', cost: 5000, minCoins: 1200, maxCoins: 3500, couponChance: 0.035 },
-  { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 3000, maxCoins: 10000, couponChance: 0.05 }
+  { id: 'case_500', title: 'Бюджетный кейс', cost: 500, minCoins: 40, maxCoins: 160, couponChance: 0.0075 }, // было 1.5% -> стало 0.75%
+  { id: 'case_1000', title: 'Стандартный кейс', cost: 1000, minCoins: 150, maxCoins: 450, couponChance: 0.01 }, // было 2.0% -> стало 1.0%
+  { id: 'case_5000', title: 'Опытный кейс', cost: 5000, minCoins: 900, maxCoins: 2500, couponChance: 0.0175 }, // было 3.5% -> стало 1.75%
+  { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 2200, maxCoins: 7500, couponChance: 0.025 }  // было 5.0% -> стало 2.5%
 ];
 
-// Определение пользователя
+// Получение данных пользователя
 function getTelegramUser() {
   let user = tg?.initDataUnsafe?.user;
 
@@ -70,10 +81,10 @@ function getTelegramUser() {
     };
   }
 
-  let guestId = localStorage.getItem('prime_guest_id');
+  let guestId = localStorage.getItem('prime_guest_id_v3');
   if (!guestId) {
     guestId = "guest_" + Math.random().toString(36).substring(2, 9);
-    localStorage.setItem('prime_guest_id', guestId);
+    localStorage.setItem('prime_guest_id_v3', guestId);
   }
 
   return {
@@ -184,7 +195,7 @@ function showTapEffect(x, y, mult, luckyClass) {
   setTimeout(() => el.remove(), 650);
 }
 
-// Обновление интерфейса
+// Обновление UI
 function updateUI() {
   const clicksEl = document.getElementById('clicks-display');
   const coinsEl = document.getElementById('coins-display');
@@ -234,9 +245,46 @@ function updateUI() {
   renderCases();
   renderCoupons();
   renderTasks();
+  renderLeaderboard();
 }
 
-// Задания и валидация подписки через Bot API
+// Рендер живого топа
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboard-list');
+  if (!container) return;
+
+  const me = getTelegramUser();
+  
+  // Базовые ориентиры для комьюнити + позиция текущего игрока
+  const board = [
+    { name: '@DNA_Sergeant', clicks: 4152 },
+    { name: '@APOSTOLIC444', clicks: 6666 },
+    { name: '@Eb_lan19', clicks: 7269 },
+    { name: '@jamalkaa', clicks: 507 },
+    { name: me.name, clicks: state.clicks, isMe: true }
+  ];
+
+  board.sort((a, b) => b.clicks - a.clicks);
+
+  container.innerHTML = '';
+  board.forEach((item, index) => {
+    let rankBadge = `${index + 1}`;
+    if (index === 0) rankBadge = '🏆 1';
+    else if (index === 1) rankBadge = '🥈 2';
+    else if (index === 2) rankBadge = '🥉 3';
+
+    const div = document.createElement('div');
+    div.className = `leader-item ${item.isMe ? 'highlight' : ''}`;
+    div.innerHTML = `
+      <span class="leader-rank">${rankBadge}</span>
+      <span class="leader-name">${item.name} ${item.isMe ? '(Вы)' : ''}</span>
+      <span class="leader-score">${Number(item.clicks).toLocaleString()}</span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// Задания и верификация через Bot API
 function renderTasks() {
   const container = document.getElementById('tasks-list');
   if (!container) return;
@@ -251,7 +299,7 @@ function renderTasks() {
   divReview.innerHTML = `
     <div>
       <strong>Подписка на Prime Review</strong>
-      <p style="font-size:0.8rem; color:#8b92a5;">Канал с топовыми честными обзорами девайсов</p>
+      <p style="font-size:0.8rem; color:#8b92a5;">Канал с обзорами девайсов</p>
       <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">+200 PrimeCoins</span>
     </div>
     <div class="task-btn-group">
@@ -270,7 +318,7 @@ function renderTasks() {
   divMain.innerHTML = `
     <div>
       <strong>Комьюнити Prime Vapor</strong>
-      <p style="font-size:0.8rem; color:#8b92a5;">Главный чат и новости сообщества</p>
+      <p style="font-size:0.8rem; color:#8b92a5;">Главное сообщество</p>
       <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">+100 PrimeCoins</span>
     </div>
     <div class="task-btn-group">
@@ -284,35 +332,41 @@ function renderTasks() {
   container.appendChild(divMain);
 }
 
-// Проверка членства в Telegram-канале через Bot API
+// Исправленная проверка членства
 window.verifySubscription = async function(channelUsername, taskId, reward) {
   const userInfo = getTelegramUser();
 
   if (userInfo.id.startsWith("guest_")) {
-    showModal("Ошибка", "⚠️", "Запустите игру через Telegram, чтобы забрать награду.");
+    showModal("Ошибка", "⚠️", "Запустите мини-апп из официального Telegram-клиента.");
     return;
   }
+
+  showModal("Проверка...", "⏳", "Связываемся с Telegram API...");
 
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${channelUsername}&user_id=${userInfo.id}`;
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.ok && ["member", "administrator", "creator"].includes(data.result?.status)) {
-      if (!state.completedTasks) state.completedTasks = [];
-      state.completedTasks.push(taskId);
-      state.primeCoins += reward;
+    if (data.ok) {
+      const status = data.result?.status;
+      if (["member", "administrator", "creator"].includes(status)) {
+        if (!state.completedTasks) state.completedTasks = [];
+        state.completedTasks.push(taskId);
+        state.primeCoins += reward;
 
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-      showModal("Награда получена!", "🪙", `Подписка подтверждена! Вам начислено +${reward} PrimeCoins.`);
-      updateUI();
-      forceSave();
-    } else {
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
-      showModal("Не подписан", "❌", `Вы ещё не подписались на канал ${channelUsername}. Подпишитесь и нажмите «Проверить».`);
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        showModal("Награда получена!", "🪙", `Подписка подтверждена! Вам начислено +${reward} PrimeCoins.`);
+        updateUI();
+        forceSave();
+        return;
+      }
     }
+
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    showModal("Не подписан", "❌", `Вы пока не подписались на ${channelUsername}. Подпишитесь на канал и нажмите кнопку проверки.`);
   } catch (e) {
-    showModal("Ошибка сети", "⚠️", "Не удалось связаться с Telegram API. Попробуйте через минуту.");
+    showModal("Ошибка сети", "⚠️", "Не удалось достучаться до API. Проверьте подключение.");
   }
 };
 
@@ -360,7 +414,7 @@ function renderCases() {
     div.innerHTML = `
       <div>
         <strong>${c.title}</strong>
-        <p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins}-${c.maxCoins} PC | Купон 10% (${(c.couponChance * 100).toFixed(1)}%)</p>
+        <p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins}-${c.maxCoins} PC | Купон 10% (${(c.couponChance * 100).toFixed(2)}%)</p>
         <span style="font-size:0.85rem; color:#ff6b00; font-weight:700;">${c.cost.toLocaleString()} кликов</span>
       </div>
       <button class="item-btn" ${!canAfford ? 'disabled' : ''} onclick="openCase('${c.id}')">Открыть</button>
@@ -462,7 +516,7 @@ if (modalCloseBtn) {
   });
 }
 
-// Навигация
+// Навигация по вкладкам
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -509,12 +563,12 @@ function forceSave() {
   }
 }
 
-// Восстановление данных
+// Загрузка данных
 window.onGoogleSheetDataLoaded = function(data) {
   if (data && data.status === "ok") {
     state.clicks = Number(data.clicks) || 0;
     state.primeCoins = Number(data.primeCoins) || 0;
-    if (data.equippedTank) {
+    if (data.equippedTank && TANKS[data.equippedTank]) {
       state.equippedTank = data.equippedTank;
       if (!state.unlockedTanks.includes(data.equippedTank)) {
         state.unlockedTanks.push(data.equippedTank);
@@ -526,10 +580,7 @@ window.onGoogleSheetDataLoaded = function(data) {
 };
 
 function loadState() {
-  const saved = localStorage.getItem(PRIMARY_KEY) || 
-                localStorage.getItem('prime_vapor_save_main') || 
-                localStorage.getItem('prime_save_v2') || 
-                localStorage.getItem('prime_save');
+  const saved = localStorage.getItem(PRIMARY_KEY);
 
   if (saved) {
     try {
@@ -545,5 +596,8 @@ function loadState() {
     document.head.appendChild(script);
   }
 }
+
+// Старт
+loadState();
 
 loadState();
