@@ -44,7 +44,8 @@ let state = {
   primeCoins: 0,
   equippedTank: 'berserker',
   unlockedTanks: ['berserker'],
-  coupons: []
+  coupons: [],
+  leaderboard: []
 };
 
 const TANKS = {
@@ -253,25 +254,26 @@ function renderLeaderboard() {
   const container = document.getElementById('leaderboard-list');
   if (!container) return;
 
-  // Оставляем в массиве только текущего игрока
-  const board = [
-    { name: currentUser.name, clicks: state.clicks, isMe: true }
-  ];
-
-  board.sort((a, b) => b.clicks - a.clicks);
-
   container.innerHTML = '';
-  board.forEach((item, index) => {
+
+  if (!state.leaderboard || state.leaderboard.length === 0) {
+    container.innerHTML = '<p class="empty-text">Топ пока пуст или загружается...</p>';
+    return;
+  }
+
+  state.leaderboard.forEach((item, index) => {
     let rankBadge = `${index + 1}`;
     if (index === 0) rankBadge = '🏆 1';
     else if (index === 1) rankBadge = '🥈 2';
     else if (index === 2) rankBadge = '🥉 3';
 
+    const isMe = item.id === currentUser.id;
+
     const div = document.createElement('div');
-    div.className = `leader-item ${item.isMe ? 'highlight' : ''}`;
+    div.className = `leader-item ${isMe ? 'highlight' : ''}`;
     div.innerHTML = `
       <span class="leader-rank">${rankBadge}</span>
-      <span class="leader-name">${item.name} ${item.isMe ? '(Вы)' : ''}</span>
+      <span class="leader-name">${item.name} ${isMe ? '(Вы)' : ''}</span>
       <span class="leader-score">${Number(item.clicks).toLocaleString()}</span>
     `;
     container.appendChild(div);
@@ -463,6 +465,21 @@ function forceSave() {
   }
 }
 
+window.onTopLoaded = function(data) {
+  if (data && data.status === "ok") {
+    state.leaderboard = data.top;
+    updateUI();
+  }
+};
+
+function loadLeaderboard() {
+  if (GOOGLE_SHEET_URL) {
+    const script = document.createElement('script');
+    script.src = `${GOOGLE_SHEET_URL}?action=get_top&callback=onTopLoaded&t=${Date.now()}`;
+    document.head.appendChild(script);
+  }
+}
+
 window.onGoogleSheetDataLoaded = function(data) {
   if (data && data.status === "ok") {
     state.clicks = Number(data.clicks) || 0;
@@ -483,22 +500,16 @@ window.onGoogleSheetDataLoaded = function(data) {
       primeCoins: 0,
       equippedTank: 'berserker',
       unlockedTanks: ['berserker'],
-      coupons: []
+      coupons: [],
+      leaderboard: []
     };
     updateUI();
     forceSave();
   }
+  loadLeaderboard();
 };
 
 function loadState() {
-  localStorage.removeItem('prime_save_stable');
-  localStorage.removeItem('prime_vapor_save_main');
-  localStorage.removeItem('prime_save_v2');
-  localStorage.removeItem('prime_save');
-  localStorage.removeItem('prime_save_v3_reset');
-  localStorage.removeItem(`prime_acc_${currentUser.id}_v4`);
-  localStorage.removeItem(`prime_acc_${currentUser.id}_v6`);
-
   const saved = localStorage.getItem(PRIMARY_KEY);
   if (saved) {
     try {
@@ -511,9 +522,9 @@ function loadState() {
     const script = document.createElement('script');
     script.src = `${GOOGLE_SHEET_URL}?tgId=${currentUser.id}&callback=onGoogleSheetDataLoaded&t=${Date.now()}`;
     document.head.appendChild(script);
+  } else {
+    loadLeaderboard();
   }
 }
-
-loadState();
 
 loadState();
