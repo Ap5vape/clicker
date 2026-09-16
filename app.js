@@ -6,6 +6,25 @@ if (tg) {
 
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
 
+// Настройка аудио
+const tankMusic = new Audio('assets/track.mp3');
+tankMusic.loop = true;
+tankMusic.volume = 0.5;
+
+function syncMusic() {
+  const current = TANKS[state.equippedTank];
+  if (current && current.hasAudio) {
+    if (tankMusic.paused) {
+      tankMusic.play().catch(() => {});
+    }
+  } else {
+    if (!tankMusic.paused) {
+      tankMusic.pause();
+      tankMusic.currentTime = 0;
+    }
+  }
+}
+
 function getTelegramUser() {
   let user = tg?.initDataUnsafe?.user;
 
@@ -60,6 +79,7 @@ const TANKS = {
   pioneer:     { id: 'pioneer', name: 'Pioneer MTL', image: 'assets/pioneer.png', price: 11000, lucky2: 0.09, lucky3: 0.02, desc: 'Качественная база, 9% x2, 2% x3' },
   galaxies:    { id: 'galaxies', name: 'Galaxies MTL', image: 'assets/galaxies.png', price: 15000, lucky2: 0.10, lucky3: 0.02, desc: 'Сложный обдув, 10% x2, 2% x3' },
   kayfun_lite: { id: 'kayfun_lite', name: 'Kayfun Lite', image: 'assets/kayfun.png', price: 20000, lucky2: 0.11, lucky3: 0.02, desc: 'Легенда сигаретной тяги, 11% x2, 2% x3' },
+  party:       { id: 'party', name: 'Apostol444 RTA', image: 'assets/party.png', price: 67, lucky2: 0.01, lucky3: 0.01, desc: 'Любимый бак апостола', hasAudio: true },
   dvarw:       { id: 'dvarw', name: 'Dvarw MTL FL', image: 'assets/dvarw.png', price: 28000, lucky2: 0.12, lucky3: 0.03, desc: 'Сухой плотный пар, 12% x2, 3% x3' },
   sputnik:     { id: 'sputnik', name: 'Sputnik RTA', image: 'assets/sputnik.png', price: 38000, lucky2: 0.13, lucky3: 0.03, desc: 'Кастомные воздуховоды, 13% x2, 3% x3' },
   fev:         { id: 'fev', name: 'Flash-e-Vapor', image: 'assets/fev.png', price: 50000, lucky2: 0.14, lucky3: 0.04, desc: 'Эталонный ТХ, 14% x2, 4% x3' },
@@ -158,6 +178,8 @@ function spawnSteam() {
 const tankTarget = document.getElementById('tank-target');
 if (tankTarget) {
   tankTarget.addEventListener('pointerdown', (e) => {
+    syncMusic();
+
     const current = TANKS[state.equippedTank] || TANKS.berserker;
     let mult = 1;
     let luckyClass = '';
@@ -361,6 +383,7 @@ window.buyTank = function(id) {
     state.unlockedTanks.push(id);
     state.equippedTank = id;
     if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    syncMusic();
     updateUI();
     forceSave();
   }
@@ -370,6 +393,7 @@ window.equipTank = function(id) {
   if (state.unlockedTanks.includes(id)) {
     state.equippedTank = id;
     if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    syncMusic();
     updateUI();
     forceSave();
   }
@@ -493,6 +517,7 @@ window.onGoogleSheetDataLoaded = function(data) {
     if (data.coupons) state.coupons = data.coupons;
 
     updateUI();
+    syncMusic();
     localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
   } else if (data && data.status === "not_found") {
     state = {
@@ -517,6 +542,7 @@ function loadState() {
     } catch (e) {}
   }
   updateUI();
+  syncMusic();
 
   if (GOOGLE_SHEET_URL) {
     const script = document.createElement('script');
