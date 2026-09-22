@@ -4,7 +4,13 @@ if (tg) {
   if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
   if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
 }
-
+window.openTgLink = function(url) {
+  if (tg && tg.openTelegramLink) {
+    tg.openTelegramLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+};
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
 const PRIMARY_KEY = `prime_acc_${tg?.initDataUnsafe?.user?.id || 'guest'}_v10`;
 
