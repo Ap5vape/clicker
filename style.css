@@ -628,3 +628,30 @@ body {
   margin: 15px 0 10px 0;
   font-weight: 700;
 }
+/* Фикс меню навигации */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around; /* Теперь они не будут слипаться в центре */
+  align-items: center;
+  padding: 10px 0;
+}
+
+/* Модалка оффлайн фарма / ежедневки */
+.daily-box {
+  background: #161b22;
+  border: 1px solid #ffaa00;
+  padding: 15px;
+  border-radius: 12px;
+  margin-top: 15px;
+  text-align: center;
+}
+.daily-day {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #ffaa00;
+  margin-bottom: 5px;
+}
+.daily-reward {
+  font-size: 0.9rem;
+  color: #c9d1d9;
+}
