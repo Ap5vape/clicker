@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Prime Vapor Clicker</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
+  <canvas id="steam-canvas"></canvas>
   <div id="app">
     <div class="brand-bar">
       <div class="brand-info">
@@ -36,8 +37,8 @@
 
       <div class="stats-row">
         <div class="stat-card">
-          <span class="stat-label">Клики</span>
-          <span class="stat-val" id="clicks-display">0</span>
+          <span class="stat-label">Пар</span>
+          <span class="stat-val" id="vapor-display">0</span>
         </div>
         <div class="stat-card prime">
           <span class="stat-label">PrimeCoins</span>
@@ -48,74 +49,81 @@
 
     <main class="view-tab active" id="tab-game">
       <div class="tank-viewport">
-        <canvas id="steam-canvas"></canvas>
         <div class="tank-container" id="tank-target">
           <img id="tank-image" src="assets/berserker_v2.png" alt="Tank">
         </div>
       </div>
-      <div class="tank-info">
+      
+      <!-- Шкала нагрева (Антикликер) -->
+      <div class="heat-wrapper">
+        <span class="heat-label">Нагрев спирали</span>
+        <div class="heat-track"><div class="heat-fill" id="heat-fill"></div></div>
+      </div>
+
+      <!-- Активные бафы -->
+      <div class="buffs-container">
+        <div class="buff-slot" id="active-coil"></div>
+        <div class="buff-slot" id="active-liquid"></div>
+      </div>
+
+      <div class="tank-info" style="margin-top: 15px;">
         <h2 id="current-tank-name">Berserker V2</h2>
         <p id="tank-perk">MTL классика. Базовый обдув</p>
       </div>
     </main>
 
-    <section class="view-tab" id="tab-top">
+    <section class="view-tab" id="tab-shop">
       <div class="section-head">
-        <h2>Топ игроков</h2>
-        <p>Лучшие койлбилдеры и коллекционеры пара</p>
+        <h2>Вейпшоп</h2>
+        <p>Покупай крутое железо, премиальные жидкости и намотки</p>
       </div>
-      <div class="leaderboard" id="leaderboard-list"></div>
+      <div class="grid" id="shop-list"></div>
     </section>
 
-    <section class="view-tab" id="tab-tanks">
+    <section class="view-tab" id="tab-inventory">
       <div class="section-head">
-        <h2>Коллекция баков</h2>
-        <p>Чем лучше бак, тем выше шанс Lucky x2 и x3</p>
+        <h2>Мой Инвентарь</h2>
+        <p>Надевай баки и применяй расходники</p>
       </div>
-      <div class="grid" id="tanks-list"></div>
+      <div class="grid" id="inventory-list"></div>
     </section>
 
     <section class="view-tab" id="tab-cases">
       <div class="section-head">
-        <h2>Кейсы за клики</h2>
-        <p>Фарми PrimeCoins и выбивай купоны на чехлы для АКБ</p>
+        <h2>Кейсы за Пар</h2>
+        <p>Фарми Пар и выбивай коины, купоны на АКБ и расходники</p>
       </div>
       <div class="grid" id="cases-list"></div>
+      <div class="section-head" style="margin-top:20px;">
+        <h2>Магазин кастома</h2>
+        <p>Используй купоны на карбоновые кейсы для аккумуляторов 18650.</p>
+        <a href="https://ap5vape.github.io/Prime/" target="_blank" class="primary-btn" style="display:inline-block; margin-top:10px; text-decoration:none; box-sizing:border-box;">Перейти на сайт</a>
+      </div>
     </section>
 
-    <section class="view-tab" id="tab-coupons">
+    <section class="view-tab" id="tab-top">
       <div class="section-head">
-        <h2>Кейсы для АКБ</h2>
-        <p>Наши кастомные карбоновые кейсы для аккумуляторов 18650.</p>
-        <a href="https://ap5vape.github.io/Prime/" target="_blank" class="primary-btn" style="display:inline-block; margin-top:10px; text-decoration:none; box-sizing:border-box;">Перейти в магазин</a>
+        <h2>Топ игроков</h2>
+        <p>Лучшие клаудчейзеры комьюнити</p>
       </div>
-      <div class="coupons-list" id="coupons-container" style="margin-top: 15px;">
-        <p class="empty-text">Вы пока не выбили скидочные купоны.</p>
-      </div>
+      <div class="leaderboard" id="leaderboard-list"></div>
     </section>
 
     <nav class="bottom-nav">
-      <button class="nav-btn active" data-tab="tab-game">
-        <span class="icon">💨</span>
-        <span>Бак</span>
-      </button>
-      <button class="nav-btn" data-tab="tab-top">
-        <span class="icon">🏆</span>
-        <span>Топ</span>
-      </button>
-      <button class="nav-btn" data-tab="tab-tanks">
-        <span class="icon">🛠</span>
-        <span>Баки</span>
-      </button>
-      <button class="nav-btn" data-tab="tab-cases">
-        <span class="icon">📦</span>
-        <span>Кейсы</span>
-      </button>
-      <button class="nav-btn" data-tab="tab-coupons">
-        <span class="icon">🔋</span>
-        <span>Магазин</span>
-      </button>
+      <button class="nav-btn active" data-tab="tab-game"><span class="icon">💨</span><span>Парить</span></button>
+      <button class="nav-btn" data-tab="tab-shop"><span class="icon">🛒</span><span>Шоп</span></button>
+      <button class="nav-btn" data-tab="tab-inventory"><span class="icon">🎒</span><span>Рюкзак</span></button>
+      <button class="nav-btn" data-tab="tab-cases"><span class="icon">📦</span><span>Кейсы</span></button>
+      <button class="nav-btn" data-tab="tab-top"><span class="icon">🏆</span><span>Топ</span></button>
     </nav>
+  </div>
+
+  <div class="overheat-overlay" id="overheat-overlay">
+    <div class="overheat-box">
+      <div class="overheat-icon">🔥</div>
+      <div class="overheat-title">ПОЙМАЛ ГАРИКА!</div>
+      <p style="color:#8b92a5; font-size:0.85rem; margin-top:5px;">Бак перегрет. Подожди 4 секунды.</p>
+    </div>
   </div>
 
   <div class="modal hidden" id="drop-modal">
@@ -123,10 +131,10 @@
       <div class="drop-icon-bounce" id="modal-icon">📦</div>
       <h3 id="modal-title">Дроп!</h3>
       <p id="modal-desc">Вы получили...</p>
-      <button class="primary-btn" id="modal-close">Забрать в инвентарь</button>
+      <button class="primary-btn" id="modal-close">Забрать</button>
     </div>
   </div>
 
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=45"></script>
 </body>
 </html>
