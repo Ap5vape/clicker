@@ -6,7 +6,6 @@ if (tg) {
 
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
 
-// Настройка аудио
 const tankMusic = new Audio('assets/track.mp3');
 tankMusic.loop = true;
 tankMusic.volume = 0.5;
@@ -27,7 +26,6 @@ function syncMusic() {
 
 function getTelegramUser() {
   let user = tg?.initDataUnsafe?.user;
-
   if (!user && tg?.initData) {
     try {
       const params = new URLSearchParams(tg.initData);
@@ -35,24 +33,15 @@ function getTelegramUser() {
       if (userRaw) user = JSON.parse(userRaw);
     } catch (e) {}
   }
-
   if (user && user.id) {
-    return {
-      id: String(user.id),
-      name: user.username ? `@${user.username}` : (user.first_name || "Игрок")
-    };
+    return { id: String(user.id), name: user.username ? `@${user.username}` : (user.first_name || "Игрок") };
   }
-
   let guestId = localStorage.getItem('prime_guest_uid_v7');
   if (!guestId) {
     guestId = "guest_" + Math.random().toString(36).substring(2, 9);
     localStorage.setItem('prime_guest_uid_v7', guestId);
   }
-
-  return {
-    id: guestId,
-    name: "Гость (" + guestId.slice(-4) + ")"
-  };
+  return { id: guestId, name: "Гость (" + guestId.slice(-4) + ")" };
 }
 
 const currentUser = getTelegramUser();
@@ -67,55 +56,61 @@ let state = {
   leaderboard: []
 };
 
+// ЭКОНОМИКА БАКОВ: Добавлен baseClick (базовая сила клика)
 const TANKS = {
-  berserker:   { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, lucky2: 0.00, lucky3: 0.00, desc: 'MTL классика. Базовый обдув' },
-  ares:        { id: 'ares', name: 'Innokin Ares 2', image: 'assets/ares.png', price: 300, lucky2: 0.02, lucky3: 0.00, desc: 'Простая регулировка обдува, 2% Lucky x2' },
-  siren:       { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 750, lucky2: 0.03, lucky3: 0.00, desc: 'GTA-система, 3% Lucky x2' },
-  hastur:      { id: 'hastur', name: 'Cthulhu Hastur', image: 'assets/hastur.png', price: 1500, lucky2: 0.04, lucky3: 0.00, desc: 'Компактная камера, 4% Lucky x2' },
-  zeus:        { id: 'zeus', name: 'Zeus Sub-Ohm', image: 'assets/zeus.png', price: 2500, lucky2: 0.05, lucky3: 0.00, desc: 'Верхний забор воздуха, 5% Lucky x2' },
-  ammit:       { id: 'ammit', name: 'Ammit MTL RTA', image: 'assets/ammit.png', price: 3500, lucky2: 0.06, lucky3: 0.00, desc: 'Отличная вкусопередача, 6% Lucky x2' },
-  bishop:      { id: 'bishop', name: 'Bishop MTL', image: 'assets/bishop.png', price: 5000, lucky2: 0.07, lucky3: 0.01, desc: 'Бесшумная боковая подача, 7% x2, 1% x3' },
-  neeko:       { id: 'neeko', name: 'Aspire Neeko', image: 'assets/neeko.png', price: 7500, lucky2: 0.08, lucky3: 0.01, desc: 'Сменные жиклеры, 8% x2, 1% x3' },
-  pioneer:     { id: 'pioneer', name: 'Pioneer MTL', image: 'assets/pioneer.png', price: 11000, lucky2: 0.09, lucky3: 0.02, desc: 'Качественная база, 9% x2, 2% x3' },
-  galaxies:    { id: 'galaxies', name: 'Galaxies MTL', image: 'assets/galaxies.png', price: 15000, lucky2: 0.10, lucky3: 0.02, desc: 'Сложный обдув, 10% x2, 2% x3' },
-  kayfun_lite: { id: 'kayfun_lite', name: 'Kayfun Lite', image: 'assets/kayfun.png', price: 20000, lucky2: 0.11, lucky3: 0.02, desc: 'Легенда сигаретной тяги, 11% x2, 2% x3' },
-  party:       { id: 'party', name: 'Apostol444 RTA', image: 'assets/party.png', price: 67, lucky2: 0.01, lucky3: 0.01, desc: 'Любимый бак апостола', hasAudio: true },
-  dvarw:       { id: 'dvarw', name: 'Dvarw MTL FL', image: 'assets/dvarw.png', price: 28000, lucky2: 0.12, lucky3: 0.03, desc: 'Сухой плотный пар, 12% x2, 3% x3' },
-  sputnik:     { id: 'sputnik', name: 'Sputnik RTA', image: 'assets/sputnik.png', price: 38000, lucky2: 0.13, lucky3: 0.03, desc: 'Кастомные воздуховоды, 13% x2, 3% x3' },
-  fev:         { id: 'fev', name: 'Flash-e-Vapor', image: 'assets/fev.png', price: 50000, lucky2: 0.14, lucky3: 0.04, desc: 'Эталонный ТХ, 14% x2, 4% x3' },
-  taifun:      { id: 'taifun', name: 'Taifun GTR', image: 'assets/taifun.png', price: 65000, lucky2: 0.15, lucky3: 0.04, desc: 'Двухканальный обдув, 15% x2, 4% x3' },
-  byka:        { id: 'byka', name: 'BY-ka v.9', image: 'assets/byka.png', price: 85000, lucky2: 0.16, lucky3: 0.05, desc: 'Перекрытие подачи, 16% x2, 5% x3' },
-  millennium:  { id: 'millennium', name: 'Millennium RTA', image: 'assets/millennium.png', price: 110000, lucky2: 0.17, lucky3: 0.05, desc: 'Итальянский кастом, 17% x2, 5% x3' },
-  expromizer:  { id: 'expromizer', name: 'Expromizer V4', image: 'assets/expromizer.png', price: 150000, lucky2: 0.18, lucky3: 0.06, desc: 'Непроливайка, 18% x2, 6% x3' },
-  kf_prime:    { id: 'kf_prime', name: 'Kayfun Prime', image: 'assets/kf_prime.png', price: 200000, lucky2: 0.19, lucky3: 0.06, desc: 'Идеальная MTL тяга, 19% x2, 6% x3' },
-  patibulum:   { id: 'patibulum', name: 'Patibulum', image: 'assets/patibulum.png', price: 280000, lucky2: 0.20, lucky3: 0.07, desc: 'Эксклюзив из Кореи, 20% x2, 7% x3' },
-  hussar:      { id: 'hussar', name: 'Hussar RTA', image: 'assets/hussar.png', price: 380000, lucky2: 0.21, lucky3: 0.07, desc: 'Мягкий премиальный пар, 21% x2, 7% x3' },
-  skyline:     { id: 'skyline', name: 'Skyline RTA', image: 'assets/skyline.png', price: 500000, lucky2: 0.22, lucky3: 0.08, desc: 'Сменные airdisks, 22% x2, 8% x3' },
-  kf_x:        { id: 'kf_x', name: 'Kayfun X', image: 'assets/kf_x.png', price: 750000, lucky2: 0.23, lucky3: 0.08, desc: 'Современная классика, 23% x2, 8% x3' },
-  tripod:      { id: 'tripod', name: 'Tripod RTA', image: 'assets/tripod.png', price: 1000000, lucky2: 0.24, lucky3: 0.09, desc: 'Тонкая настройка базы, 24% x2, 9% x3' },
-  integra:     { id: 'integra', name: 'Integra RTA', image: 'assets/integra.png', price: 1500000, lucky2: 0.25, lucky3: 0.09, desc: 'Редчайший High-End, 25% x2, 9% x3' },
-  paravozz:    { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 2500000, lucky2: 0.26, lucky3: 0.10, desc: 'Абсолютный топ сетки, 26% x2, 10% x3' }
+  berserker:   { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, baseClick: 1, lucky2: 0.00, lucky3: 0.00, desc: 'Сила клика: 1. Базовый обдув.' },
+  ares:        { id: 'ares', name: 'Innokin Ares 2', image: 'assets/ares.png', price: 300, baseClick: 2, lucky2: 0.02, lucky3: 0.00, desc: 'Сила клика: 2. 2% Lucky x2' },
+  siren:       { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 800, baseClick: 3, lucky2: 0.03, lucky3: 0.00, desc: 'Сила клика: 3. 3% Lucky x2' },
+  hastur:      { id: 'hastur', name: 'Cthulhu Hastur', image: 'assets/hastur.png', price: 1500, baseClick: 4, lucky2: 0.04, lucky3: 0.00, desc: 'Сила клика: 4. 4% Lucky x2' },
+  zeus:        { id: 'zeus', name: 'Zeus Sub-Ohm', image: 'assets/zeus.png', price: 3000, baseClick: 5, lucky2: 0.05, lucky3: 0.00, desc: 'Сила клика: 5. 5% Lucky x2' },
+  ammit:       { id: 'ammit', name: 'Ammit MTL RTA', image: 'assets/ammit.png', price: 5000, baseClick: 7, lucky2: 0.06, lucky3: 0.00, desc: 'Сила клика: 7. 6% Lucky x2' },
+  bishop:      { id: 'bishop', name: 'Bishop MTL', image: 'assets/bishop.png', price: 8500, baseClick: 10, lucky2: 0.07, lucky3: 0.01, desc: 'Сила клика: 10. 7% x2, 1% x3' },
+  neeko:       { id: 'neeko', name: 'Aspire Neeko', image: 'assets/neeko.png', price: 14000, baseClick: 14, lucky2: 0.08, lucky3: 0.01, desc: 'Сила клика: 14. 8% x2, 1% x3' },
+  pioneer:     { id: 'pioneer', name: 'Pioneer MTL', image: 'assets/pioneer.png', price: 22000, baseClick: 18, lucky2: 0.09, lucky3: 0.02, desc: 'Сила клика: 18. 9% x2, 2% x3' },
+  galaxies:    { id: 'galaxies', name: 'Galaxies MTL', image: 'assets/galaxies.png', price: 35000, baseClick: 25, lucky2: 0.10, lucky3: 0.02, desc: 'Сила клика: 25. 10% x2, 2% x3' },
+  kayfun_lite: { id: 'kayfun_lite', name: 'Kayfun Lite', image: 'assets/kayfun.png', price: 50000, baseClick: 35, lucky2: 0.11, lucky3: 0.02, desc: 'Сила клика: 35. 11% x2, 2% x3' },
+  party:       { id: 'party', name: 'Party RTA', image: 'assets/party.png', price: 75000, baseClick: 45, lucky2: 0.12, lucky3: 0.02, desc: 'Сила клика: 45. Качает трек при парении', hasAudio: true },
+  dvarw:       { id: 'dvarw', name: 'Dvarw MTL FL', image: 'assets/dvarw.png', price: 110000, baseClick: 60, lucky2: 0.12, lucky3: 0.03, desc: 'Сила клика: 60. 12% x2, 3% x3' },
+  sputnik:     { id: 'sputnik', name: 'Sputnik RTA', image: 'assets/sputnik.png', price: 160000, baseClick: 80, lucky2: 0.13, lucky3: 0.03, desc: 'Сила клика: 80. 13% x2, 3% x3' },
+  fev:         { id: 'fev', name: 'Flash-e-Vapor', image: 'assets/fev.png', price: 240000, baseClick: 110, lucky2: 0.14, lucky3: 0.04, desc: 'Сила клика: 110. 14% x2, 4% x3' },
+  taifun:      { id: 'taifun', name: 'Taifun GTR', image: 'assets/taifun.png', price: 350000, baseClick: 150, lucky2: 0.15, lucky3: 0.04, desc: 'Сила клика: 150. 15% x2, 4% x3' },
+  byka:        { id: 'byka', name: 'BY-ka v.9', image: 'assets/byka.png', price: 500000, baseClick: 200, lucky2: 0.16, lucky3: 0.05, desc: 'Сила клика: 200. 16% x2, 5% x3' },
+  millennium:  { id: 'millennium', name: 'Millennium RTA', image: 'assets/millennium.png', price: 750000, baseClick: 280, lucky2: 0.17, lucky3: 0.05, desc: 'Сила клика: 280. 17% x2, 5% x3' },
+  expromizer:  { id: 'expromizer', name: 'Expromizer V4', image: 'assets/expromizer.png', price: 1000000, baseClick: 380, lucky2: 0.18, lucky3: 0.06, desc: 'Сила клика: 380. 18% x2, 6% x3' },
+  kf_prime:    { id: 'kf_prime', name: 'Kayfun Prime', image: 'assets/kf_prime.png', price: 1500000, baseClick: 500, lucky2: 0.19, lucky3: 0.06, desc: 'Сила клика: 500. 19% x2, 6% x3' },
+  patibulum:   { id: 'patibulum', name: 'Patibulum', image: 'assets/patibulum.png', price: 2200000, baseClick: 700, lucky2: 0.20, lucky3: 0.07, desc: 'Сила клика: 700. 20% x2, 7% x3' },
+  hussar:      { id: 'hussar', name: 'Hussar RTA', image: 'assets/hussar.png', price: 3200000, baseClick: 950, lucky2: 0.21, lucky3: 0.07, desc: 'Сила клика: 950. 21% x2, 7% x3' },
+  skyline:     { id: 'skyline', name: 'Skyline RTA', image: 'assets/skyline.png', price: 4500000, baseClick: 1300, lucky2: 0.22, lucky3: 0.08, desc: 'Сила клика: 1300. 22% x2, 8% x3' },
+  kf_x:        { id: 'kf_x', name: 'Kayfun X', image: 'assets/kf_x.png', price: 6500000, baseClick: 1800, lucky2: 0.23, lucky3: 0.08, desc: 'Сила клика: 1800. 23% x2, 8% x3' },
+  tripod:      { id: 'tripod', name: 'Tripod RTA', image: 'assets/tripod.png', price: 9000000, baseClick: 2500, lucky2: 0.24, lucky3: 0.09, desc: 'Сила клика: 2500. 24% x2, 9% x3' },
+  integra:     { id: 'integra', name: 'Integra RTA', image: 'assets/integra.png', price: 12000000, baseClick: 3500, lucky2: 0.25, lucky3: 0.09, desc: 'Сила клика: 3500. 25% x2, 9% x3' },
+  paravozz:    { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 20000000, baseClick: 5000, lucky2: 0.26, lucky3: 0.10, desc: 'Сила клика: 5000. 26% x2, 10% x3' }
 };
 
 const RANKS = [
   { min: 0, max: 2000, title: 'Респектовый' },
-  { min: 2000, max: 10000, title: 'Локал бой' },
-  { min: 10000, max: 35000, title: 'Вейпер' },
-  { min: 35000, max: 100000, title: 'Тру вейпер' },
-  { min: 100000, max: 500000, title: 'PrimeВейпер' },
-  { min: 500000, max: Infinity, title: 'Легенда пара' }
+  { min: 2000, max: 15000, title: 'Локал бой' },
+  { min: 15000, max: 100000, title: 'Вейпер' },
+  { min: 100000, max: 500000, title: 'Тру вейпер' },
+  { min: 500000, max: 5000000, title: 'PrimeВейпер' },
+  { min: 5000000, max: Infinity, title: 'Легенда пара' }
 ];
 
+// ЭКОНОМИКА КЕЙСОВ (7 штук, нормализованный дроп)
 const CASES = [
-  { id: 'case_500', title: 'Бюджетный кейс', cost: 500, minCoins: 40, maxCoins: 160, couponChance: 0.0035 },
-  { id: 'case_1000', title: 'Стандартный кейс', cost: 1000, minCoins: 150, maxCoins: 450, couponChance: 0.005 },
-  { id: 'case_5000', title: 'Опытный кейс', cost: 5000, minCoins: 900, maxCoins: 2500, couponChance: 0.0085 },
-  { id: 'case_10000', title: 'Prime Кейс', cost: 10000, minCoins: 2200, maxCoins: 7500, couponChance: 0.0125 }
+  { id: 'case_1', title: 'Бюджетный кейс', cost: 500, minCoins: 20, maxCoins: 60, couponChance: 0.001 },
+  { id: 'case_2', title: 'Стандартный кейс', cost: 2500, minCoins: 100, maxCoins: 350, couponChance: 0.002 },
+  { id: 'case_3', title: 'Опытный кейс', cost: 15000, minCoins: 700, maxCoins: 2500, couponChance: 0.005 },
+  { id: 'case_4', title: 'Prime Кейс', cost: 100000, minCoins: 5000, maxCoins: 18000, couponChance: 0.01 },
+  { id: 'case_5', title: 'Элитный кейс', cost: 500000, minCoins: 28000, maxCoins: 90000, couponChance: 0.015 },
+  { id: 'case_6', title: 'High-End кейс', cost: 2500000, minCoins: 150000, maxCoins: 500000, couponChance: 0.02 },
+  { id: 'case_7', title: 'Легендарный кейс', cost: 10000000, minCoins: 700000, maxCoins: 2000000, couponChance: 0.03 }
 ];
 
 const canvas = document.getElementById('steam-canvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
+let isOpeningCase = false; // блокировка кликов во время анимации кейса
 
 function resizeCanvas() {
   if (!canvas || !canvas.parentElement) return;
@@ -181,6 +176,9 @@ if (tankTarget) {
     syncMusic();
 
     const current = TANKS[state.equippedTank] || TANKS.berserker;
+    
+    // Применяем базовую силу клика бака
+    let base = current.baseClick || 1;
     let mult = 1;
     let luckyClass = '';
 
@@ -197,9 +195,11 @@ if (tankTarget) {
       if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
     }
 
-    state.clicks += mult;
+    const earned = base * mult;
+    state.clicks += earned;
+    
     spawnSteam();
-    showTapEffect(e.clientX, e.clientY, mult, luckyClass);
+    showTapEffect(e.clientX, e.clientY, earned, luckyClass);
 
     if (mult > 1) {
       const flash = document.createElement('div');
@@ -213,10 +213,10 @@ if (tankTarget) {
   });
 }
 
-function showTapEffect(x, y, mult, luckyClass) {
+function showTapEffect(x, y, amount, luckyClass) {
   const el = document.createElement('div');
   el.className = `tap-particle ${luckyClass}`;
-  el.innerText = mult > 1 ? `LUCKY x${mult}!` : `+${mult}`;
+  el.innerText = `+${amount.toLocaleString()}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   document.body.appendChild(el);
@@ -249,7 +249,7 @@ function updateUI() {
     const cur = state.clicks - currentRank.min;
     const pct = Math.min(Math.max((cur / need) * 100, 0), 100);
     if (barEl) barEl.style.width = `${pct}%`;
-    if (hintEl) hintEl.innerText = `${state.clicks} / ${nextRank.min} до ${nextRank.title}`;
+    if (hintEl) hintEl.innerText = `${state.clicks.toLocaleString()} / ${nextRank.min.toLocaleString()} до ${nextRank.title}`;
   } else {
     if (barEl) barEl.style.width = '100%';
     if (hintEl) hintEl.innerText = 'Максимальный уровень';
@@ -275,9 +275,7 @@ function updateUI() {
 function renderLeaderboard() {
   const container = document.getElementById('leaderboard-list');
   if (!container) return;
-
   container.innerHTML = '';
-
   if (!state.leaderboard || state.leaderboard.length === 0) {
     container.innerHTML = '<p class="empty-text">Топ пока пуст или загружается...</p>';
     return;
@@ -288,7 +286,6 @@ function renderLeaderboard() {
     if (index === 0) rankBadge = '🏆 1';
     else if (index === 1) rankBadge = '🥈 2';
     else if (index === 2) rankBadge = '🥉 3';
-
     const isMe = item.id === currentUser.id;
 
     const div = document.createElement('div');
@@ -308,11 +305,30 @@ function renderTanks() {
   container.innerHTML = '';
 
   Object.values(TANKS).forEach(t => {
+    // Чиним массив unlockedTanks если он поврежден
+    if (!state.unlockedTanks) state.unlockedTanks = ['berserker'];
+    
     const isUnlocked = state.unlockedTanks.includes(t.id);
     const isEquipped = state.equippedTank === t.id;
 
     const div = document.createElement('div');
     div.className = 'item-card';
+    
+    let actionButtons = '';
+    
+    if (isEquipped) {
+      actionButtons = `<button class="item-btn equipped">Выбран</button>`;
+    } else if (isUnlocked) {
+      actionButtons = `<button class="item-btn" onclick="equipTank('${t.id}')">Надеть</button>`;
+      // Кнопка Флипа (если цена > 0)
+      if (t.price > 0) {
+        actionButtons += `<button class="item-btn sell" onclick="sellTank('${t.id}')">Флип</button>`;
+      }
+    } else {
+      const canBuy = state.primeCoins >= t.price;
+      actionButtons = `<button class="item-btn" ${!canBuy ? 'disabled' : ''} onclick="buyTank('${t.id}')">Купить</button>`;
+    }
+
     div.innerHTML = `
       <div>
         <strong>${t.name}</strong>
@@ -321,13 +337,8 @@ function renderTanks() {
           ${isUnlocked ? 'В коллекции' : `${t.price.toLocaleString()} PC`}
         </span>
       </div>
-      <div>
-        ${isEquipped 
-          ? '<button class="item-btn equipped">Выбран</button>'
-          : isUnlocked 
-            ? `<button class="item-btn" onclick="equipTank('${t.id}')">Надеть</button>`
-            : `<button class="item-btn" ${state.primeCoins < t.price ? 'disabled' : ''} onclick="buyTank('${t.id}')">Купить</button>`
-        }
+      <div style="display: flex; gap: 6px;">
+        ${actionButtons}
       </div>
     `;
     container.appendChild(div);
@@ -340,13 +351,13 @@ function renderCases() {
   container.innerHTML = '';
 
   CASES.forEach(c => {
-    const canAfford = state.clicks >= c.cost;
+    const canAfford = state.clicks >= c.cost && !isOpeningCase;
     const div = document.createElement('div');
     div.className = 'item-card';
     div.innerHTML = `
       <div>
         <strong>${c.title}</strong>
-        <p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins}-${c.maxCoins} PC | Купон 10% (${(c.couponChance * 100).toFixed(2)}%)</p>
+        <p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins.toLocaleString()}-${c.maxCoins.toLocaleString()} PC | Купон (${(c.couponChance * 100).toFixed(1)}%)</p>
         <span style="font-size:0.85rem; color:#ff6b00; font-weight:700;">${c.cost.toLocaleString()} кликов</span>
       </div>
       <button class="item-btn" ${!canAfford ? 'disabled' : ''} onclick="openCase('${c.id}')">Открыть</button>
@@ -399,36 +410,82 @@ window.equipTank = function(id) {
   }
 };
 
+// Функция продажи (Флип)
+window.sellTank = function(id) {
+  const tank = TANKS[id];
+  if (!state.unlockedTanks.includes(id) || state.equippedTank === id || tank.price === 0) return;
+
+  // Рандом от 40% до 100% изначальной цены
+  const sellMultiplier = 0.4 + (Math.random() * 0.6);
+  const sellPrice = Math.floor(tank.price * sellMultiplier);
+
+  // Удаляем из коллекции и выдаем монеты
+  state.unlockedTanks = state.unlockedTanks.filter(t => t !== id);
+  state.primeCoins += sellPrice;
+
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  
+  // Показываем сообщение о продаже
+  showModal('Удачный флип!', '💰', `Вы успешно продали ${tank.name} и получили +${sellPrice.toLocaleString()} PrimeCoins!`);
+  
+  updateUI();
+  forceSave();
+};
+
 window.openCase = function(id) {
+  if (isOpeningCase) return;
   const c = CASES.find(x => x.id === id);
   if (state.clicks < c.cost) return;
 
+  isOpeningCase = true;
   state.clicks -= c.cost;
-  const isCoupon = Math.random() < c.couponChance;
-
-  let modalTitle = '';
-  let modalDesc = '';
-  let modalIcon = '';
-
-  if (isCoupon) {
-    const code = `PRIME-10-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    if (!state.coupons) state.coupons = [];
-    state.coupons.push({ discount: '10%', code });
-    modalTitle = 'СУПЕР ДРОП!';
-    modalIcon = '🔋';
-    modalDesc = `Вам выпал промокод 10% на кейс для АКБ!\nКод: ${code}`;
-  } else {
-    const wonCoins = Math.floor(Math.random() * (c.maxCoins - c.minCoins + 1)) + c.minCoins;
-    state.primeCoins += wonCoins;
-    modalTitle = 'PrimeCoins!';
-    modalIcon = '🪙';
-    modalDesc = `Вы получили +${wonCoins} PrimeCoins на покупки.`;
-  }
-
-  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-  showModal(modalTitle, modalIcon, modalDesc);
-  updateUI();
+  updateUI(); // Блокируем кнопки
   forceSave();
+
+  // Запускаем модалку с анимацией тряски
+  const mTitle = document.getElementById('modal-title');
+  const mIcon = document.getElementById('modal-icon');
+  const mDesc = document.getElementById('modal-desc');
+  const mClose = document.getElementById('modal-close');
+  const modal = document.getElementById('drop-modal');
+
+  mTitle.innerText = 'Распаковка...';
+  mDesc.innerText = 'Снимаем плёнку...';
+  mIcon.innerText = '📦';
+  mIcon.className = 'drop-icon-bounce case-opening-anim'; // добавляем класс анимации
+  mClose.style.display = 'none'; // прячем кнопку закрытия
+  modal.classList.remove('hidden');
+
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+  // Ждем 1.5 секунды анимации, затем генерируем дроп
+  setTimeout(() => {
+    isOpeningCase = false;
+    mIcon.className = 'drop-icon-bounce'; // убираем анимацию
+    mClose.style.display = 'block';
+
+    const isCoupon = Math.random() < c.couponChance;
+
+    if (isCoupon) {
+      const code = `PRIME-10-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      if (!state.coupons) state.coupons = [];
+      state.coupons.push({ discount: '10%', code });
+      mTitle.innerText = 'СУПЕР ДРОП!';
+      mIcon.innerText = '🔋';
+      mDesc.innerText = `Вам выпал промокод 10% на кейс для АКБ!\nКод: ${code}`;
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    } else {
+      const wonCoins = Math.floor(Math.random() * (c.maxCoins - c.minCoins + 1)) + c.minCoins;
+      state.primeCoins += wonCoins;
+      mTitle.innerText = 'PrimeCoins!';
+      mIcon.innerText = '🪙';
+      mDesc.innerText = `Вы получили +${wonCoins.toLocaleString()} PrimeCoins на покупки.`;
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    }
+
+    updateUI();
+    forceSave();
+  }, 1500);
 };
 
 function showModal(title, icon, desc) {
@@ -436,11 +493,14 @@ function showModal(title, icon, desc) {
   const mIcon = document.getElementById('modal-icon');
   const mDesc = document.getElementById('modal-desc');
   const modal = document.getElementById('drop-modal');
+  const mClose = document.getElementById('modal-close');
 
-  if (mTitle) mTitle.innerText = title;
-  if (mIcon) mIcon.innerText = icon;
-  if (mDesc) mDesc.innerText = desc;
-  if (modal) modal.classList.remove('hidden');
+  mTitle.innerText = title;
+  mIcon.innerText = icon;
+  mIcon.className = 'drop-icon-bounce';
+  mDesc.innerText = desc;
+  mClose.style.display = 'block';
+  modal.classList.remove('hidden');
 }
 
 const modalCloseBtn = document.getElementById('modal-close');
@@ -477,7 +537,8 @@ function forceSave() {
       clicks: state.clicks,
       primeCoins: state.primeCoins,
       equippedTank: state.equippedTank,
-      coupons: state.coupons
+      coupons: state.coupons,
+      unlockedTanks: state.unlockedTanks
     });
 
     fetch(GOOGLE_SHEET_URL, {
@@ -508,6 +569,14 @@ window.onGoogleSheetDataLoaded = function(data) {
   if (data && data.status === "ok") {
     state.clicks = Number(data.clicks) || 0;
     state.primeCoins = Number(data.primeCoins) || 0;
+    
+    // Безопасная загрузка коллекции баков
+    if (data.unlockedTanks && Array.isArray(data.unlockedTanks)) {
+      state.unlockedTanks = data.unlockedTanks;
+    } else {
+      state.unlockedTanks = ['berserker'];
+    }
+
     if (data.equippedTank && TANKS[data.equippedTank]) {
       state.equippedTank = data.equippedTank;
       if (!state.unlockedTanks.includes(data.equippedTank)) {
@@ -541,6 +610,9 @@ function loadState() {
       state = Object.assign(state, JSON.parse(saved));
     } catch (e) {}
   }
+  
+  if (!state.unlockedTanks) state.unlockedTanks = ['berserker'];
+  
   updateUI();
   syncMusic();
 
