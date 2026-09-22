@@ -147,3 +147,29 @@ body, html {
 .nav-btn .icon { font-size: 1.5rem; }
 .nav-btn span:last-child { font-size: 0.65rem; font-weight: 600; }
 .nav-btn.active, .nav-btn.active span { color: #ffaa00; }
+/* Жестко блокируем скролл только на главной странице с баком */
+#tab-game {
+  overflow-y: hidden !important;
+  padding-bottom: 0 !important;
+}
+
+/* Исправляем стили для кнопок шапки, так как мы заменили <a> на <button> */
+button.brand-badge {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  outline: none;
+  cursor: pointer;
+}
+button.brand-badge.review {
+  border-color: rgba(255, 170, 0, 0.3);
+}
+
+/* Анимация пульсации для привлечения внимания */
+.pulse-anim {
+  animation: pulseBadge 2s infinite;
+}
+
+@keyframes pulseBadge {
+  0% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 170, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0); }
+}
