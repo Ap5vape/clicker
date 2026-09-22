@@ -2,27 +2,11 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
   tg.ready();
   tg.expand();
+  if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
 }
 
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwT9o46pqdgTHtJjGKikuaomwG8G1C-bZAzCDuL4F4fyb102BqM-TNZxSIQRuezjPlG/exec";
-
-const tankMusic = new Audio('assets/track.mp3');
-tankMusic.loop = true;
-tankMusic.volume = 0.5;
-
-function syncMusic() {
-  const current = TANKS[state.equippedTank];
-  if (current && current.hasAudio) {
-    if (tankMusic.paused) {
-      tankMusic.play().catch(() => {});
-    }
-  } else {
-    if (!tankMusic.paused) {
-      tankMusic.pause();
-      tankMusic.currentTime = 0;
-    }
-  }
-}
 
 function getTelegramUser() {
   let user = tg?.initDataUnsafe?.user;
@@ -33,58 +17,71 @@ function getTelegramUser() {
       if (userRaw) user = JSON.parse(userRaw);
     } catch (e) {}
   }
-  if (user && user.id) {
-    return { id: String(user.id), name: user.username ? `@${user.username}` : (user.first_name || "Игрок") };
-  }
-  let guestId = localStorage.getItem('prime_guest_uid_v7');
+  if (user && user.id) return { id: String(user.id), name: user.username ? `@${user.username}` : (user.first_name || "Игрок") };
+  let guestId = localStorage.getItem('prime_guest_uid_v8');
   if (!guestId) {
     guestId = "guest_" + Math.random().toString(36).substring(2, 9);
-    localStorage.setItem('prime_guest_uid_v7', guestId);
+    localStorage.setItem('prime_guest_uid_v8', guestId);
   }
   return { id: guestId, name: "Гость (" + guestId.slice(-4) + ")" };
 }
 
 const currentUser = getTelegramUser();
-const PRIMARY_KEY = `prime_acc_${currentUser.id}_v7`;
+const PRIMARY_KEY = `prime_acc_${currentUser.id}_v8`;
 
 let state = {
-  clicks: 0,
+  vapor: 0,
   primeCoins: 0,
   equippedTank: 'berserker',
   unlockedTanks: ['berserker'],
+  inventory: { coils: {}, liquids: {} }, // ID: количество
+  activeBuffs: { coil: null, liquid: null }, // {id, clicksLeft}
   coupons: [],
   leaderboard: []
 };
 
-// ЭКОНОМИКА БАКОВ: Добавлен baseClick (базовая сила клика)
+// --- БАЗА ДАННЫХ ПРЕДМЕТОВ ---
 const TANKS = {
-  berserker:   { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, baseClick: 1, lucky2: 0.00, lucky3: 0.00, desc: 'Сила клика: 1. Базовый обдув.' },
-  ares:        { id: 'ares', name: 'Innokin Ares 2', image: 'assets/ares.png', price: 300, baseClick: 2, lucky2: 0.02, lucky3: 0.00, desc: 'Сила клика: 2. 2% Lucky x2' },
-  siren:       { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 800, baseClick: 3, lucky2: 0.03, lucky3: 0.00, desc: 'Сила клика: 3. 3% Lucky x2' },
-  hastur:      { id: 'hastur', name: 'Cthulhu Hastur', image: 'assets/hastur.png', price: 1500, baseClick: 4, lucky2: 0.04, lucky3: 0.00, desc: 'Сила клика: 4. 4% Lucky x2' },
-  zeus:        { id: 'zeus', name: 'Zeus Sub-Ohm', image: 'assets/zeus.png', price: 3000, baseClick: 5, lucky2: 0.05, lucky3: 0.00, desc: 'Сила клика: 5. 5% Lucky x2' },
-  ammit:       { id: 'ammit', name: 'Ammit MTL RTA', image: 'assets/ammit.png', price: 5000, baseClick: 7, lucky2: 0.06, lucky3: 0.00, desc: 'Сила клика: 7. 6% Lucky x2' },
-  bishop:      { id: 'bishop', name: 'Bishop MTL', image: 'assets/bishop.png', price: 8500, baseClick: 10, lucky2: 0.07, lucky3: 0.01, desc: 'Сила клика: 10. 7% x2, 1% x3' },
-  neeko:       { id: 'neeko', name: 'Aspire Neeko', image: 'assets/neeko.png', price: 14000, baseClick: 14, lucky2: 0.08, lucky3: 0.01, desc: 'Сила клика: 14. 8% x2, 1% x3' },
-  pioneer:     { id: 'pioneer', name: 'Pioneer MTL', image: 'assets/pioneer.png', price: 22000, baseClick: 18, lucky2: 0.09, lucky3: 0.02, desc: 'Сила клика: 18. 9% x2, 2% x3' },
-  galaxies:    { id: 'galaxies', name: 'Galaxies MTL', image: 'assets/galaxies.png', price: 35000, baseClick: 25, lucky2: 0.10, lucky3: 0.02, desc: 'Сила клика: 25. 10% x2, 2% x3' },
-  kayfun_lite: { id: 'kayfun_lite', name: 'Kayfun Lite', image: 'assets/kayfun.png', price: 50000, baseClick: 35, lucky2: 0.11, lucky3: 0.02, desc: 'Сила клика: 35. 11% x2, 2% x3' },
-  party:       { id: 'party', name: 'Party RTA', image: 'assets/party.png', price: 75000, baseClick: 45, lucky2: 0.12, lucky3: 0.02, desc: 'Сила клика: 45. Качает трек при парении', hasAudio: true },
-  dvarw:       { id: 'dvarw', name: 'Dvarw MTL FL', image: 'assets/dvarw.png', price: 110000, baseClick: 60, lucky2: 0.12, lucky3: 0.03, desc: 'Сила клика: 60. 12% x2, 3% x3' },
-  sputnik:     { id: 'sputnik', name: 'Sputnik RTA', image: 'assets/sputnik.png', price: 160000, baseClick: 80, lucky2: 0.13, lucky3: 0.03, desc: 'Сила клика: 80. 13% x2, 3% x3' },
-  fev:         { id: 'fev', name: 'Flash-e-Vapor', image: 'assets/fev.png', price: 240000, baseClick: 110, lucky2: 0.14, lucky3: 0.04, desc: 'Сила клика: 110. 14% x2, 4% x3' },
-  taifun:      { id: 'taifun', name: 'Taifun GTR', image: 'assets/taifun.png', price: 350000, baseClick: 150, lucky2: 0.15, lucky3: 0.04, desc: 'Сила клика: 150. 15% x2, 4% x3' },
-  byka:        { id: 'byka', name: 'BY-ka v.9', image: 'assets/byka.png', price: 500000, baseClick: 200, lucky2: 0.16, lucky3: 0.05, desc: 'Сила клика: 200. 16% x2, 5% x3' },
-  millennium:  { id: 'millennium', name: 'Millennium RTA', image: 'assets/millennium.png', price: 750000, baseClick: 280, lucky2: 0.17, lucky3: 0.05, desc: 'Сила клика: 280. 17% x2, 5% x3' },
-  expromizer:  { id: 'expromizer', name: 'Expromizer V4', image: 'assets/expromizer.png', price: 1000000, baseClick: 380, lucky2: 0.18, lucky3: 0.06, desc: 'Сила клика: 380. 18% x2, 6% x3' },
-  kf_prime:    { id: 'kf_prime', name: 'Kayfun Prime', image: 'assets/kf_prime.png', price: 1500000, baseClick: 500, lucky2: 0.19, lucky3: 0.06, desc: 'Сила клика: 500. 19% x2, 6% x3' },
-  patibulum:   { id: 'patibulum', name: 'Patibulum', image: 'assets/patibulum.png', price: 2200000, baseClick: 700, lucky2: 0.20, lucky3: 0.07, desc: 'Сила клика: 700. 20% x2, 7% x3' },
-  hussar:      { id: 'hussar', name: 'Hussar RTA', image: 'assets/hussar.png', price: 3200000, baseClick: 950, lucky2: 0.21, lucky3: 0.07, desc: 'Сила клика: 950. 21% x2, 7% x3' },
-  skyline:     { id: 'skyline', name: 'Skyline RTA', image: 'assets/skyline.png', price: 4500000, baseClick: 1300, lucky2: 0.22, lucky3: 0.08, desc: 'Сила клика: 1300. 22% x2, 8% x3' },
-  kf_x:        { id: 'kf_x', name: 'Kayfun X', image: 'assets/kf_x.png', price: 6500000, baseClick: 1800, lucky2: 0.23, lucky3: 0.08, desc: 'Сила клика: 1800. 23% x2, 8% x3' },
-  tripod:      { id: 'tripod', name: 'Tripod RTA', image: 'assets/tripod.png', price: 9000000, baseClick: 2500, lucky2: 0.24, lucky3: 0.09, desc: 'Сила клика: 2500. 24% x2, 9% x3' },
-  integra:     { id: 'integra', name: 'Integra RTA', image: 'assets/integra.png', price: 12000000, baseClick: 3500, lucky2: 0.25, lucky3: 0.09, desc: 'Сила клика: 3500. 25% x2, 9% x3' },
-  paravozz:    { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 20000000, baseClick: 5000, lucky2: 0.26, lucky3: 0.10, desc: 'Сила клика: 5000. 26% x2, 10% x3' }
+  berserker:   { id: 'berserker', name: 'Berserker V2', image: 'assets/berserker_v2.png', price: 0, baseClick: 1, lucky2: 0.00, lucky3: 0.00, desc: 'База: 1 пар.' },
+  ares:        { id: 'ares', name: 'Innokin Ares 2', image: 'assets/ares.png', price: 300, baseClick: 2, lucky2: 0.02, lucky3: 0.00, desc: 'База: 2 пар. 2% Lucky x2' },
+  siren:       { id: 'siren', name: 'Siren 2 GTA', image: 'assets/siren.png', price: 800, baseClick: 3, lucky2: 0.03, lucky3: 0.00, desc: 'База: 3 пар. 3% Lucky x2' },
+  hastur:      { id: 'hastur', name: 'Cthulhu Hastur', image: 'assets/hastur.png', price: 1500, baseClick: 4, lucky2: 0.04, lucky3: 0.00, desc: 'База: 4 пар. 4% Lucky x2' },
+  zeus:        { id: 'zeus', name: 'Zeus Sub-Ohm', image: 'assets/zeus.png', price: 3000, baseClick: 5, lucky2: 0.05, lucky3: 0.00, desc: 'База: 5 пар. 5% Lucky x2' },
+  ammit:       { id: 'ammit', name: 'Ammit MTL RTA', image: 'assets/ammit.png', price: 5000, baseClick: 7, lucky2: 0.06, lucky3: 0.00, desc: 'База: 7 пар. 6% Lucky x2' },
+  bishop:      { id: 'bishop', name: 'Bishop MTL', image: 'assets/bishop.png', price: 8500, baseClick: 10, lucky2: 0.07, lucky3: 0.01, desc: 'База: 10 пар. 7% x2, 1% x3' },
+  neeko:       { id: 'neeko', name: 'Aspire Neeko', image: 'assets/neeko.png', price: 14000, baseClick: 14, lucky2: 0.08, lucky3: 0.01, desc: 'База: 14 пар. 8% x2, 1% x3' },
+  pioneer:     { id: 'pioneer', name: 'Pioneer MTL', image: 'assets/pioneer.png', price: 22000, baseClick: 18, lucky2: 0.09, lucky3: 0.02, desc: 'База: 18 пар. 9% x2, 2% x3' },
+  galaxies:    { id: 'galaxies', name: 'Galaxies MTL', image: 'assets/galaxies.png', price: 35000, baseClick: 25, lucky2: 0.10, lucky3: 0.02, desc: 'База: 25 пар. 10% x2, 2% x3' },
+  kayfun_lite: { id: 'kayfun_lite', name: 'Kayfun Lite', image: 'assets/kayfun.png', price: 50000, baseClick: 35, lucky2: 0.11, lucky3: 0.02, desc: 'База: 35 пар. 11% x2, 2% x3' },
+  dvarw:       { id: 'dvarw', name: 'Dvarw MTL FL', image: 'assets/dvarw.png', price: 110000, baseClick: 60, lucky2: 0.12, lucky3: 0.03, desc: 'База: 60 пар. 12% x2, 3% x3' },
+  sputnik:     { id: 'sputnik', name: 'Sputnik RTA', image: 'assets/sputnik.png', price: 160000, baseClick: 80, lucky2: 0.13, lucky3: 0.03, desc: 'База: 80 пар. 13% x2, 3% x3' },
+  fev:         { id: 'fev', name: 'Flash-e-Vapor', image: 'assets/fev.png', price: 240000, baseClick: 110, lucky2: 0.14, lucky3: 0.04, desc: 'База: 110 пар. 14% x2, 4% x3' },
+  taifun:      { id: 'taifun', name: 'Taifun GTR', image: 'assets/taifun.png', price: 350000, baseClick: 150, lucky2: 0.15, lucky3: 0.04, desc: 'База: 150 пар. 15% x2, 4% x3' },
+  byka:        { id: 'byka', name: 'BY-ka v.9', image: 'assets/byka.png', price: 500000, baseClick: 200, lucky2: 0.16, lucky3: 0.05, desc: 'База: 200 пар. 16% x2, 5% x3' },
+  millennium:  { id: 'millennium', name: 'Millennium RTA', image: 'assets/millennium.png', price: 750000, baseClick: 280, lucky2: 0.17, lucky3: 0.05, desc: 'База: 280 пар. 17% x2, 5% x3' },
+  expromizer:  { id: 'expromizer', name: 'Expromizer V4', image: 'assets/expromizer.png', price: 1000000, baseClick: 380, lucky2: 0.18, lucky3: 0.06, desc: 'База: 380 пар. 18% x2, 6% x3' },
+  kf_prime:    { id: 'kf_prime', name: 'Kayfun Prime', image: 'assets/kf_prime.png', price: 1500000, baseClick: 500, lucky2: 0.19, lucky3: 0.06, desc: 'База: 500 пар. 19% x2, 6% x3' },
+  patibulum:   { id: 'patibulum', name: 'Patibulum', image: 'assets/patibulum.png', price: 2200000, baseClick: 700, lucky2: 0.20, lucky3: 0.07, desc: 'База: 700 пар. 20% x2, 7% x3' },
+  hussar:      { id: 'hussar', name: 'Hussar RTA', image: 'assets/hussar.png', price: 3200000, baseClick: 950, lucky2: 0.21, lucky3: 0.07, desc: 'База: 950 пар. 21% x2, 7% x3' },
+  skyline:     { id: 'skyline', name: 'Skyline RTA', image: 'assets/skyline.png', price: 4500000, baseClick: 1300, lucky2: 0.22, lucky3: 0.08, desc: 'База: 1300 пар. 22% x2, 8% x3' },
+  kf_x:        { id: 'kf_x', name: 'Kayfun X', image: 'assets/kf_x.png', price: 6500000, baseClick: 1800, lucky2: 0.23, lucky3: 0.08, desc: 'База: 1800 пар. 23% x2, 8% x3' },
+  tripod:      { id: 'tripod', name: 'Tripod RTA', image: 'assets/tripod.png', price: 9000000, baseClick: 2500, lucky2: 0.24, lucky3: 0.09, desc: 'База: 2500 пар. 24% x2, 9% x3' },
+  integra:     { id: 'integra', name: 'Integra RTA', image: 'assets/integra.png', price: 12000000, baseClick: 3500, lucky2: 0.25, lucky3: 0.09, desc: 'База: 3500 пар. 25% x2, 9% x3' },
+  paravozz:    { id: 'paravozz', name: 'Paravozz Genesis', image: 'assets/paravozz.png', price: 20000000, baseClick: 5000, lucky2: 0.26, lucky3: 0.10, desc: 'База: 5000 пар. 26% x2, 10% x3' }
+};
+
+const COILS = {
+  mono: { id: 'mono', name: 'Моножила', icon: '➰', price: 500, bonus: 2, maxClicks: 2000, desc: '+2 Пар за клик (Хватит на 2к тапов)' },
+  fused: { id: 'fused', name: 'Fused Clapton', icon: '🪢', price: 2500, bonus: 5, maxClicks: 5000, desc: '+5 Пар за клик (Хватит на 5к тапов)' },
+  staggered: { id: 'staggered', name: 'Staggered', icon: '⛓️', price: 10000, bonus: 15, maxClicks: 10000, desc: '+15 Пар за клик (Хватит на 10к тапов)' },
+  alien: { id: 'alien', name: 'Diesel Alien', icon: '🧬', price: 40000, bonus: 40, maxClicks: 25000, desc: '+40 Пар за клик (Хватит на 25к тапов)' }
+};
+
+const LIQUIDS = {
+  russia: { id: 'russia', name: 'Жидкость (Россия)', icon: '🇷🇺', price: 1000, bonus: 3, maxClicks: 1000, desc: '+3 Пар за клик (1к тапов)' },
+  usa: { id: 'usa', name: 'Жидкость (США)', icon: '🇺🇸', price: 4000, bonus: 10, maxClicks: 2500, desc: '+10 Пар за клик (2.5к тапов)' },
+  malaysia: { id: 'malaysia', name: 'Жидкость (Малайзия)', icon: '🇲🇾', price: 12000, bonus: 25, maxClicks: 5000, desc: '+25 Пар за клик (5к тапов)' },
+  royalduck: { id: 'royalduck', name: 'RoyalDuck by АНОАРО', icon: '🦆', price: 60000, bonus: 100, maxClicks: 10000, desc: 'Премиум! +100 Пар за клик (10к тапов)' }
 };
 
 const RANKS = [
@@ -96,7 +93,6 @@ const RANKS = [
   { min: 5000000, max: Infinity, title: 'Легенда пара' }
 ];
 
-// ЭКОНОМИКА КЕЙСОВ (7 штук, нормализованный дроп)
 const CASES = [
   { id: 'case_1', title: 'Бюджетный кейс', cost: 500, minCoins: 20, maxCoins: 60, couponChance: 0.001 },
   { id: 'case_2', title: 'Стандартный кейс', cost: 2500, minCoins: 100, maxCoins: 350, couponChance: 0.002 },
@@ -107,15 +103,26 @@ const CASES = [
   { id: 'case_7', title: 'Легендарный кейс', cost: 10000000, minCoins: 700000, maxCoins: 2000000, couponChance: 0.03 }
 ];
 
+// ПРЕДЗАГРУЗКА КАРТИНОК
+function preloadImages() {
+  const images = Object.values(TANKS).map(t => t.image);
+  images.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+}
+preloadImages();
+
+// ПАР (Canvas теперь Fixed на фоне)
 const canvas = document.getElementById('steam-canvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
-let isOpeningCase = false; // блокировка кликов во время анимации кейса
+let isOpeningCase = false;
 
 function resizeCanvas() {
-  if (!canvas || !canvas.parentElement) return;
-  canvas.width = canvas.parentElement.clientWidth;
-  canvas.height = canvas.parentElement.clientHeight;
+  if (!canvas) return;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -124,16 +131,16 @@ class SteamParticle {
   constructor(x, y) {
     this.x = x + (Math.random() - 0.5) * 50;
     this.y = y;
-    this.radius = 15 + Math.random() * 12;
-    this.vx = (Math.random() - 0.5) * 1.8;
-    this.vy = -2.5 - Math.random() * 2.8;
-    this.alpha = 0.5;
+    this.radius = 20 + Math.random() * 20;
+    this.vx = (Math.random() - 0.5) * 1.5;
+    this.vy = -3 - Math.random() * 3; // Летит вверх быстрее
+    this.alpha = 0.6;
   }
   update() {
     this.x += this.vx;
     this.y += this.vy;
-    this.radius += 0.45;
-    this.alpha -= 0.011;
+    this.radius += 0.5;
+    this.alpha -= 0.008;
   }
   draw() {
     if (!ctx) return;
@@ -141,8 +148,8 @@ class SteamParticle {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(230, 235, 245, ${Math.max(this.alpha, 0)})`;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.25)';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
     ctx.fill();
     ctx.restore();
   }
@@ -154,51 +161,111 @@ function renderSteam() {
     for (let i = particles.length - 1; i >= 0; i--) {
       particles[i].update();
       particles[i].draw();
-      if (particles[i].alpha <= 0) particles.splice(i, 1);
+      if (particles[i].alpha <= 0 || particles[i].y < -50) particles.splice(i, 1);
     }
   }
   requestAnimationFrame(renderSteam);
 }
 renderSteam();
 
-function spawnSteam() {
+function spawnSteam(startX, startY) {
   if (!canvas) return;
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  for (let i = 0; i < 5; i++) {
-    particles.push(new SteamParticle(cx, cy));
+  for (let i = 0; i < 6; i++) {
+    particles.push(new SteamParticle(startX, startY));
   }
 }
 
+// ПЕРЕГРЕВ И АНТИ-КЛИКЕР
+let heat = 0;
+let isOverheated = false;
+let lastClickTime = 0;
+
+setInterval(() => {
+  if (heat > 0 && !isOverheated) {
+    heat -= 15;
+    if (heat < 0) heat = 0;
+    updateHeatUI();
+  }
+}, 200);
+
+function updateHeatUI() {
+  const bar = document.getElementById('heat-fill');
+  if (bar) {
+    const pct = Math.min((heat / 500) * 100, 100);
+    bar.style.width = `${pct}%`;
+  }
+}
+
+function triggerOverheat() {
+  isOverheated = true;
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+  const overlay = document.getElementById('overheat-overlay');
+  if(overlay) overlay.classList.add('active');
+  
+  setTimeout(() => {
+    isOverheated = false;
+    heat = 0;
+    updateHeatUI();
+    if(overlay) overlay.classList.remove('active');
+  }, 4000);
+}
+
+// КЛИК ПО БАКУ
 const tankTarget = document.getElementById('tank-target');
 if (tankTarget) {
   tankTarget.addEventListener('pointerdown', (e) => {
-    syncMusic();
+    if (isOverheated) return;
 
-    const current = TANKS[state.equippedTank] || TANKS.berserker;
+    const now = Date.now();
+    if (now - lastClickTime < 40) return; // Игнор быстрее 40мс
+    lastClickTime = now;
+
+    heat += 12;
+    updateHeatUI();
+    if (heat >= 500) {
+      triggerOverheat();
+      return;
+    }
+
+    const currentTank = TANKS[state.equippedTank] || TANKS.berserker;
     
-    // Применяем базовую силу клика бака
-    let base = current.baseClick || 1;
+    // Расчет бафов
+    let coilBonus = 0;
+    if (state.activeBuffs.coil) {
+      coilBonus = COILS[state.activeBuffs.coil.id].bonus;
+      state.activeBuffs.coil.clicksLeft--;
+      if (state.activeBuffs.coil.clicksLeft <= 0) state.activeBuffs.coil = null;
+    }
+
+    let liquidBonus = 0;
+    if (state.activeBuffs.liquid) {
+      liquidBonus = LIQUIDS[state.activeBuffs.liquid.id].bonus;
+      state.activeBuffs.liquid.clicksLeft--;
+      if (state.activeBuffs.liquid.clicksLeft <= 0) state.activeBuffs.liquid = null;
+    }
+
+    let base = currentTank.baseClick + coilBonus + liquidBonus;
     let mult = 1;
     let luckyClass = '';
 
     const roll = Math.random();
-    if (current.lucky3 > 0 && roll < current.lucky3) {
-      mult = 3;
-      luckyClass = 'lucky-3';
+    if (currentTank.lucky3 > 0 && roll < currentTank.lucky3) {
+      mult = 3; luckyClass = 'lucky-3';
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    } else if (current.lucky2 > 0 && roll < (current.lucky3 + current.lucky2)) {
-      mult = 2;
-      luckyClass = 'lucky-2';
+    } else if (currentTank.lucky2 > 0 && roll < (currentTank.lucky3 + currentTank.lucky2)) {
+      mult = 2; luckyClass = 'lucky-2';
       if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
     } else {
       if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
     }
 
     const earned = base * mult;
-    state.clicks += earned;
+    state.vapor += earned;
     
-    spawnSteam();
+    const rect = tankTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    spawnSteam(centerX, centerY - 20);
     showTapEffect(e.clientX, e.clientY, earned, luckyClass);
 
     if (mult > 1) {
@@ -209,7 +276,7 @@ if (tankTarget) {
     }
 
     updateUI();
-    scheduleSave();
+    scheduleLocalSave();
   });
 }
 
@@ -224,18 +291,16 @@ function showTapEffect(x, y, amount, luckyClass) {
 }
 
 function updateUI() {
-  const clicksEl = document.getElementById('clicks-display');
+  const vaporEl = document.getElementById('vapor-display');
   const coinsEl = document.getElementById('coins-display');
-  if (clicksEl) clicksEl.innerText = Number(state.clicks || 0).toLocaleString();
+  if (vaporEl) vaporEl.innerText = Number(state.vapor || 0).toLocaleString();
   if (coinsEl) coinsEl.innerText = Number(state.primeCoins || 0).toLocaleString();
 
   let currentRank = RANKS[0];
   let nextRank = RANKS[1];
   for (let i = 0; i < RANKS.length; i++) {
-    if (state.clicks >= RANKS[i].min && state.clicks < RANKS[i].max) {
-      currentRank = RANKS[i];
-      nextRank = RANKS[i + 1] || null;
-      break;
+    if (state.vapor >= RANKS[i].min && state.vapor < RANKS[i].max) {
+      currentRank = RANKS[i]; nextRank = RANKS[i + 1] || null; break;
     }
   }
 
@@ -246,10 +311,10 @@ function updateUI() {
   if (statusEl) statusEl.innerText = currentRank.title;
   if (nextRank) {
     const need = nextRank.min - currentRank.min;
-    const cur = state.clicks - currentRank.min;
+    const cur = state.vapor - currentRank.min;
     const pct = Math.min(Math.max((cur / need) * 100, 0), 100);
     if (barEl) barEl.style.width = `${pct}%`;
-    if (hintEl) hintEl.innerText = `${state.clicks.toLocaleString()} / ${nextRank.min.toLocaleString()} до ${nextRank.title}`;
+    if (hintEl) hintEl.innerText = `${state.vapor.toLocaleString()} / ${nextRank.min.toLocaleString()} до ${nextRank.title}`;
   } else {
     if (barEl) barEl.style.width = '100%';
     if (hintEl) hintEl.innerText = 'Максимальный уровень';
@@ -262,367 +327,331 @@ function updateUI() {
 
   if (nameEl) nameEl.innerText = current.name;
   if (perkEl) perkEl.innerText = current.desc;
-  if (imgEl && !imgEl.src.includes(current.image)) {
-    imgEl.src = current.image;
-  }
+  if (imgEl && !imgEl.src.includes(current.image)) imgEl.src = current.image;
 
-  renderTanks();
+  renderActiveBuffs();
+  renderShop();
+  renderInventory();
   renderCases();
-  renderCoupons();
   renderLeaderboard();
 }
+
+function renderActiveBuffs() {
+  const cCont = document.getElementById('active-coil');
+  const lCont = document.getElementById('active-liquid');
+  
+  if (state.activeBuffs.coil) {
+    const c = COILS[state.activeBuffs.coil.id];
+    const pct = (state.activeBuffs.coil.clicksLeft / c.maxClicks) * 100;
+    cCont.innerHTML = `<span class="buff-icon">${c.icon}</span><span class="buff-name">${c.name}</span><div class="buff-hp-bg"><div class="buff-hp-fill" style="width:${pct}%; background:${pct<20?'#da3633':'#238636'}"></div></div>`;
+  } else {
+    cCont.innerHTML = `<span class="buff-icon" style="opacity:0.3">➰</span><span class="buff-name" style="color:#8b92a5">Нет койла</span><div class="buff-hp-bg"></div>`;
+  }
+
+  if (state.activeBuffs.liquid) {
+    const l = LIQUIDS[state.activeBuffs.liquid.id];
+    const pct = (state.activeBuffs.liquid.clicksLeft / l.maxClicks) * 100;
+    lCont.innerHTML = `<span class="buff-icon">${l.icon}</span><span class="buff-name">${l.name}</span><div class="buff-hp-bg"><div class="buff-hp-fill" style="width:${pct}%; background:${pct<20?'#da3633':'#238636'}"></div></div>`;
+  } else {
+    lCont.innerHTML = `<span class="buff-icon" style="opacity:0.3">💧</span><span class="buff-name" style="color:#8b92a5">Нет жижи</span><div class="buff-hp-bg"></div>`;
+  }
+}
+
+// ВЕЙПШОП (Покупка всего)
+function renderShop() {
+  const container = document.getElementById('shop-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // Танки
+  container.innerHTML += `<div class="shop-section-title">Железо (Баки)</div>`;
+  Object.values(TANKS).forEach(t => {
+    if (state.unlockedTanks.includes(t.id)) return; // Скрываем купленные
+    const canBuy = state.primeCoins >= t.price;
+    container.innerHTML += `
+      <div class="item-card">
+        <div><strong>${t.name}</strong><p style="font-size:0.8rem; color:#8b92a5;">${t.desc}</p><span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">${t.price.toLocaleString()} PC</span></div>
+        <button class="item-btn" ${!canBuy ? 'disabled' : ''} onclick="buyTank('${t.id}')">Купить</button>
+      </div>`;
+  });
+
+  // Жидкости
+  container.innerHTML += `<div class="shop-section-title">Жидкости</div>`;
+  Object.values(LIQUIDS).forEach(l => {
+    const canBuy = state.primeCoins >= l.price;
+    container.innerHTML += `
+      <div class="item-card">
+        <div><strong>${l.icon} ${l.name}</strong><p style="font-size:0.8rem; color:#8b92a5;">${l.desc}</p><span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">${l.price.toLocaleString()} PC</span></div>
+        <button class="item-btn" ${!canBuy ? 'disabled' : ''} onclick="buyItem('liquids', '${l.id}')">Купить</button>
+      </div>`;
+  });
+
+  // Койлы
+  container.innerHTML += `<div class="shop-section-title">Намотки (Койлы)</div>`;
+  Object.values(COILS).forEach(c => {
+    const canBuy = state.primeCoins >= c.price;
+    container.innerHTML += `
+      <div class="item-card">
+        <div><strong>${c.icon} ${c.name}</strong><p style="font-size:0.8rem; color:#8b92a5;">${c.desc}</p><span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">${c.price.toLocaleString()} PC</span></div>
+        <button class="item-btn" ${!canBuy ? 'disabled' : ''} onclick="buyItem('coils', '${c.id}')">Купить</button>
+      </div>`;
+  });
+}
+
+// ИНВЕНТАРЬ (Надевание и продажа)
+function renderInventory() {
+  const container = document.getElementById('inventory-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  container.innerHTML += `<div class="shop-section-title">Мои Баки</div>`;
+  state.unlockedTanks.forEach(id => {
+    const t = TANKS[id];
+    const isEq = state.equippedTank === id;
+    container.innerHTML += `
+      <div class="item-card">
+        <div><strong>${t.name}</strong><p style="font-size:0.8rem; color:#8b92a5;">${t.desc}</p></div>
+        <div style="display:flex; gap:6px;">
+          ${isEq ? `<button class="item-btn equipped">Надет</button>` : `<button class="item-btn" onclick="equipTank('${t.id}')">Надеть</button>`}
+          ${(!isEq && t.price > 0) ? `<button class="item-btn sell" onclick="sellTank('${t.id}')">Флип</button>` : ''}
+        </div>
+      </div>`;
+  });
+
+  const liqs = Object.keys(state.inventory.liquids).filter(k => state.inventory.liquids[k] > 0);
+  if (liqs.length > 0) {
+    container.innerHTML += `<div class="shop-section-title">Мои Жидкости</div>`;
+    liqs.forEach(id => {
+      const l = LIQUIDS[id];
+      const count = state.inventory.liquids[id];
+      container.innerHTML += `
+        <div class="item-card">
+          <div><strong>${l.icon} ${l.name} (x${count})</strong><p style="font-size:0.8rem; color:#8b92a5;">${l.desc}</p></div>
+          <button class="item-btn" onclick="equipItem('liquid', '${id}')">Залить</button>
+        </div>`;
+    });
+  }
+
+  const coils = Object.keys(state.inventory.coils).filter(k => state.inventory.coils[k] > 0);
+  if (coils.length > 0) {
+    container.innerHTML += `<div class="shop-section-title">Мои Койлы</div>`;
+    coils.forEach(id => {
+      const c = COILS[id];
+      const count = state.inventory.coils[id];
+      container.innerHTML += `
+        <div class="item-card">
+          <div><strong>${c.icon} ${c.name} (x${count})</strong><p style="font-size:0.8rem; color:#8b92a5;">${c.desc}</p></div>
+          <button class="item-btn" onclick="equipItem('coil', '${id}')">Поставить</button>
+        </div>`;
+    });
+  }
+}
+
+window.buyTank = function(id) {
+  if (state.primeCoins >= TANKS[id].price && !state.unlockedTanks.includes(id)) {
+    state.primeCoins -= TANKS[id].price;
+    state.unlockedTanks.push(id);
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    updateUI(); scheduleLocalSave();
+  }
+};
+window.buyItem = function(type, id) {
+  const item = type === 'coils' ? COILS[id] : LIQUIDS[id];
+  if (state.primeCoins >= item.price) {
+    state.primeCoins -= item.price;
+    if (!state.inventory[type][id]) state.inventory[type][id] = 0;
+    state.inventory[type][id]++;
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    updateUI(); scheduleLocalSave();
+  }
+};
+window.equipTank = function(id) {
+  if (state.unlockedTanks.includes(id)) {
+    state.equippedTank = id;
+    if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    updateUI(); scheduleLocalSave();
+  }
+};
+window.sellTank = function(id) {
+  const tank = TANKS[id];
+  if (!state.unlockedTanks.includes(id) || state.equippedTank === id || tank.price === 0) return;
+  const sellPrice = Math.floor(tank.price * (0.4 + (Math.random() * 0.6)));
+  state.unlockedTanks = state.unlockedTanks.filter(t => t !== id);
+  state.primeCoins += sellPrice;
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  showModal('Удачный флип!', '💰', `Продано! +${sellPrice.toLocaleString()} PrimeCoins`);
+  updateUI(); scheduleLocalSave();
+};
+window.equipItem = function(type, id) {
+  const invType = type === 'coil' ? 'coils' : 'liquids';
+  if (state.inventory[invType][id] > 0) {
+    state.inventory[invType][id]--;
+    const item = type === 'coil' ? COILS[id] : LIQUIDS[id];
+    state.activeBuffs[type] = { id: id, clicksLeft: item.maxClicks };
+    if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    updateUI(); scheduleLocalSave();
+  }
+};
+
+function renderCases() {
+  const container = document.getElementById('cases-list');
+  if (!container) return;
+  container.innerHTML = '';
+  CASES.forEach(c => {
+    const canAfford = state.vapor >= c.cost && !isOpeningCase;
+    container.innerHTML += `
+      <div class="item-card">
+        <div><strong>${c.title}</strong><p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins.toLocaleString()}-${c.maxCoins.toLocaleString()} PC | Купон (${(c.couponChance * 100).toFixed(1)}%)</p>
+        <span style="font-size:0.85rem; color:#ff6b00; font-weight:700;">${c.cost.toLocaleString()} пар</span></div>
+        <button class="item-btn" ${!canAfford ? 'disabled' : ''} onclick="openCase('${c.id}')">Открыть</button>
+      </div>`;
+  });
+}
+
+window.openCase = function(id) {
+  if (isOpeningCase) return;
+  const c = CASES.find(x => x.id === id);
+  if (state.vapor < c.cost) return;
+
+  isOpeningCase = true;
+  state.vapor -= c.cost;
+  updateUI(); scheduleLocalSave();
+
+  const mTitle = document.getElementById('modal-title');
+  const mIcon = document.getElementById('modal-icon');
+  const mDesc = document.getElementById('modal-desc');
+  const mClose = document.getElementById('modal-close');
+  const modal = document.getElementById('drop-modal');
+
+  mTitle.innerText = 'Распаковка...'; mDesc.innerText = 'Снимаем плёнку...';
+  mIcon.innerText = '📦'; mIcon.className = 'drop-icon-bounce case-opening-anim';
+  mClose.style.display = 'none'; modal.classList.remove('hidden');
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+  setTimeout(() => {
+    isOpeningCase = false;
+    mIcon.className = 'drop-icon-bounce'; mClose.style.display = 'block';
+
+    const isCoupon = Math.random() < c.couponChance;
+    if (isCoupon) {
+      const code = `PRIME-10-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      state.coupons.push({ discount: '10%', code });
+      mTitle.innerText = 'СУПЕР ДРОП!'; mIcon.innerText = '🔋'; mDesc.innerText = `Промокод 10% на кейс АКБ!\nКод: ${code}`;
+    } else {
+      const wonCoins = Math.floor(Math.random() * (c.maxCoins - c.minCoins + 1)) + c.minCoins;
+      state.primeCoins += wonCoins;
+      mTitle.innerText = 'PrimeCoins!'; mIcon.innerText = '🪙'; mDesc.innerText = `Вы получили +${wonCoins.toLocaleString()} PrimeCoins.`;
+      
+      // Шанс дропнуть расходник (30%)
+      if(Math.random() < 0.3) {
+        const types = ['coils', 'liquids'];
+        const t = types[Math.floor(Math.random()*2)];
+        const keys = Object.keys(t==='coils' ? COILS : LIQUIDS);
+        const itemID = keys[Math.floor(Math.random()*keys.length)];
+        if (!state.inventory[t][itemID]) state.inventory[t][itemID] = 0;
+        state.inventory[t][itemID]++;
+        const iObj = t==='coils' ? COILS[itemID] : LIQUIDS[itemID];
+        mDesc.innerText += `\n\n🎁 Бонус: ${iObj.icon} ${iObj.name}`;
+      }
+    }
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    updateUI(); scheduleLocalSave();
+  }, 1500);
+};
+
+function showModal(title, icon, desc) {
+  document.getElementById('modal-title').innerText = title;
+  document.getElementById('modal-icon').innerText = icon;
+  document.getElementById('modal-icon').className = 'drop-icon-bounce';
+  document.getElementById('modal-desc').innerText = desc;
+  document.getElementById('modal-close').style.display = 'block';
+  document.getElementById('drop-modal').classList.remove('hidden');
+}
+document.getElementById('modal-close')?.addEventListener('click', () => { document.getElementById('drop-modal').classList.add('hidden'); });
 
 function renderLeaderboard() {
   const container = document.getElementById('leaderboard-list');
   if (!container) return;
   container.innerHTML = '';
   if (!state.leaderboard || state.leaderboard.length === 0) {
-    container.innerHTML = '<p class="empty-text">Топ пока пуст или загружается...</p>';
-    return;
+    container.innerHTML = '<p class="empty-text">Топ пока пуст или загружается...</p>'; return;
   }
-
   state.leaderboard.forEach((item, index) => {
     let rankBadge = `${index + 1}`;
-    if (index === 0) rankBadge = '🏆 1';
-    else if (index === 1) rankBadge = '🥈 2';
-    else if (index === 2) rankBadge = '🥉 3';
+    if (index === 0) rankBadge = '🏆 1'; else if (index === 1) rankBadge = '🥈 2'; else if (index === 2) rankBadge = '🥉 3';
     const isMe = item.id === currentUser.id;
-
-    const div = document.createElement('div');
-    div.className = `leader-item ${isMe ? 'highlight' : ''}`;
-    div.innerHTML = `
-      <span class="leader-rank">${rankBadge}</span>
-      <span class="leader-name">${item.name} ${isMe ? '(Вы)' : ''}</span>
-      <span class="leader-score">${Number(item.clicks).toLocaleString()}</span>
-    `;
-    container.appendChild(div);
+    container.innerHTML += `
+      <div class="leader-item ${isMe ? 'highlight' : ''}">
+        <span class="leader-rank">${rankBadge}</span><span class="leader-name">${item.name} ${isMe ? '(Вы)' : ''}</span><span class="leader-score">${Number(item.vapor).toLocaleString()}</span>
+      </div>`;
   });
 }
 
-function renderTanks() {
-  const container = document.getElementById('tanks-list');
-  if (!container) return;
-  container.innerHTML = '';
-
-  Object.values(TANKS).forEach(t => {
-    // Чиним массив unlockedTanks если он поврежден
-    if (!state.unlockedTanks) state.unlockedTanks = ['berserker'];
-    
-    const isUnlocked = state.unlockedTanks.includes(t.id);
-    const isEquipped = state.equippedTank === t.id;
-
-    const div = document.createElement('div');
-    div.className = 'item-card';
-    
-    let actionButtons = '';
-    
-    if (isEquipped) {
-      actionButtons = `<button class="item-btn equipped">Выбран</button>`;
-    } else if (isUnlocked) {
-      actionButtons = `<button class="item-btn" onclick="equipTank('${t.id}')">Надеть</button>`;
-      // Кнопка Флипа (если цена > 0)
-      if (t.price > 0) {
-        actionButtons += `<button class="item-btn sell" onclick="sellTank('${t.id}')">Флип</button>`;
-      }
-    } else {
-      const canBuy = state.primeCoins >= t.price;
-      actionButtons = `<button class="item-btn" ${!canBuy ? 'disabled' : ''} onclick="buyTank('${t.id}')">Купить</button>`;
-    }
-
-    div.innerHTML = `
-      <div>
-        <strong>${t.name}</strong>
-        <p style="font-size:0.8rem; color:#8b92a5;">${t.desc}</p>
-        <span style="font-size:0.85rem; color:#ffaa00; font-weight:700;">
-          ${isUnlocked ? 'В коллекции' : `${t.price.toLocaleString()} PC`}
-        </span>
-      </div>
-      <div style="display: flex; gap: 6px;">
-        ${actionButtons}
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-function renderCases() {
-  const container = document.getElementById('cases-list');
-  if (!container) return;
-  container.innerHTML = '';
-
-  CASES.forEach(c => {
-    const canAfford = state.clicks >= c.cost && !isOpeningCase;
-    const div = document.createElement('div');
-    div.className = 'item-card';
-    div.innerHTML = `
-      <div>
-        <strong>${c.title}</strong>
-        <p style="font-size:0.8rem; color:#8b92a5;">${c.minCoins.toLocaleString()}-${c.maxCoins.toLocaleString()} PC | Купон (${(c.couponChance * 100).toFixed(1)}%)</p>
-        <span style="font-size:0.85rem; color:#ff6b00; font-weight:700;">${c.cost.toLocaleString()} кликов</span>
-      </div>
-      <button class="item-btn" ${!canAfford ? 'disabled' : ''} onclick="openCase('${c.id}')">Открыть</button>
-    `;
-    container.appendChild(div);
-  });
-}
-
-function renderCoupons() {
-  const container = document.getElementById('coupons-container');
-  if (!container) return;
-  if (!state.coupons || state.coupons.length === 0) {
-    container.innerHTML = '<p class="empty-text">Вы пока не выбили скидочные купоны.</p>';
-    return;
-  }
-  container.innerHTML = '';
-  state.coupons.forEach(cp => {
-    const div = document.createElement('div');
-    div.className = 'item-card';
-    div.innerHTML = `
-      <div>
-        <strong>Скидка ${cp.discount} на заказ</strong>
-        <p style="font-size:0.9rem; color:#ffaa00; font-family:monospace; margin-top:4px; font-weight:700;">${cp.code}</p>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-window.buyTank = function(id) {
-  const tank = TANKS[id];
-  if (state.primeCoins >= tank.price && !state.unlockedTanks.includes(id)) {
-    state.primeCoins -= tank.price;
-    state.unlockedTanks.push(id);
-    state.equippedTank = id;
-    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    syncMusic();
-    updateUI();
-    forceSave();
-  }
-};
-
-window.equipTank = function(id) {
-  if (state.unlockedTanks.includes(id)) {
-    state.equippedTank = id;
-    if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
-    syncMusic();
-    updateUI();
-    forceSave();
-  }
-};
-
-// Функция продажи (Флип)
-window.sellTank = function(id) {
-  const tank = TANKS[id];
-  if (!state.unlockedTanks.includes(id) || state.equippedTank === id || tank.price === 0) return;
-
-  // Рандом от 40% до 100% изначальной цены
-  const sellMultiplier = 0.4 + (Math.random() * 0.6);
-  const sellPrice = Math.floor(tank.price * sellMultiplier);
-
-  // Удаляем из коллекции и выдаем монеты
-  state.unlockedTanks = state.unlockedTanks.filter(t => t !== id);
-  state.primeCoins += sellPrice;
-
-  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-  
-  // Показываем сообщение о продаже
-  showModal('Удачный флип!', '💰', `Вы успешно продали ${tank.name} и получили +${sellPrice.toLocaleString()} PrimeCoins!`);
-  
-  updateUI();
-  forceSave();
-};
-
-window.openCase = function(id) {
-  if (isOpeningCase) return;
-  const c = CASES.find(x => x.id === id);
-  if (state.clicks < c.cost) return;
-
-  isOpeningCase = true;
-  state.clicks -= c.cost;
-  updateUI(); // Блокируем кнопки
-  forceSave();
-
-  // Запускаем модалку с анимацией тряски
-  const mTitle = document.getElementById('modal-title');
-  const mIcon = document.getElementById('modal-icon');
-  const mDesc = document.getElementById('modal-desc');
-  const mClose = document.getElementById('modal-close');
-  const modal = document.getElementById('drop-modal');
-
-  mTitle.innerText = 'Распаковка...';
-  mDesc.innerText = 'Снимаем плёнку...';
-  mIcon.innerText = '📦';
-  mIcon.className = 'drop-icon-bounce case-opening-anim'; // добавляем класс анимации
-  mClose.style.display = 'none'; // прячем кнопку закрытия
-  modal.classList.remove('hidden');
-
-  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-
-  // Ждем 1.5 секунды анимации, затем генерируем дроп
-  setTimeout(() => {
-    isOpeningCase = false;
-    mIcon.className = 'drop-icon-bounce'; // убираем анимацию
-    mClose.style.display = 'block';
-
-    const isCoupon = Math.random() < c.couponChance;
-
-    if (isCoupon) {
-      const code = `PRIME-10-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      if (!state.coupons) state.coupons = [];
-      state.coupons.push({ discount: '10%', code });
-      mTitle.innerText = 'СУПЕР ДРОП!';
-      mIcon.innerText = '🔋';
-      mDesc.innerText = `Вам выпал промокод 10% на кейс для АКБ!\nКод: ${code}`;
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    } else {
-      const wonCoins = Math.floor(Math.random() * (c.maxCoins - c.minCoins + 1)) + c.minCoins;
-      state.primeCoins += wonCoins;
-      mTitle.innerText = 'PrimeCoins!';
-      mIcon.innerText = '🪙';
-      mDesc.innerText = `Вы получили +${wonCoins.toLocaleString()} PrimeCoins на покупки.`;
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    }
-
-    updateUI();
-    forceSave();
-  }, 1500);
-};
-
-function showModal(title, icon, desc) {
-  const mTitle = document.getElementById('modal-title');
-  const mIcon = document.getElementById('modal-icon');
-  const mDesc = document.getElementById('modal-desc');
-  const modal = document.getElementById('drop-modal');
-  const mClose = document.getElementById('modal-close');
-
-  mTitle.innerText = title;
-  mIcon.innerText = icon;
-  mIcon.className = 'drop-icon-bounce';
-  mDesc.innerText = desc;
-  mClose.style.display = 'block';
-  modal.classList.remove('hidden');
-}
-
-const modalCloseBtn = document.getElementById('modal-close');
-if (modalCloseBtn) {
-  modalCloseBtn.addEventListener('click', () => {
-    document.getElementById('drop-modal')?.classList.add('hidden');
-  });
-}
-
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    const target = document.getElementById(btn.dataset.tab);
-    if (target) target.classList.add('active');
-  });
-});
-
+// BATCH-СОХРАНЕНИЕ
 let saveTimeout = null;
-function scheduleSave() {
-  if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(forceSave, 800);
+let googleSyncInterval = null;
+
+function scheduleLocalSave() {
+  localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
 }
 
-function forceSave() {
-  const json = JSON.stringify(state);
-  localStorage.setItem(PRIMARY_KEY, json);
-
-  if (GOOGLE_SHEET_URL) {
-    const payload = JSON.stringify({
-      tgId: currentUser.id,
-      username: currentUser.name,
-      clicks: state.clicks,
-      primeCoins: state.primeCoins,
-      equippedTank: state.equippedTank,
-      coupons: state.coupons,
-      unlockedTanks: state.unlockedTanks
-    });
-
-    fetch(GOOGLE_SHEET_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "data=" + encodeURIComponent(payload)
-    }).catch(() => {});
-  }
+function syncToGoogle() {
+  if (!GOOGLE_SHEET_URL) return;
+  const payload = JSON.stringify({
+    tgId: currentUser.id, username: currentUser.name, vapor: state.vapor, primeCoins: state.primeCoins,
+    equippedTank: state.equippedTank, coupons: state.coupons, unlockedTanks: state.unlockedTanks,
+    inventory: state.inventory, activeBuffs: state.activeBuffs
+  });
+  fetch(GOOGLE_SHEET_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(payload) }).catch(() => {});
 }
 
-window.onTopLoaded = function(data) {
-  if (data && data.status === "ok") {
-    state.leaderboard = data.top;
-    updateUI();
-  }
-};
+// Синхронизируем раз в 10 сек
+setInterval(syncToGoogle, 10000);
 
-function loadLeaderboard() {
-  if (GOOGLE_SHEET_URL) {
-    const script = document.createElement('script');
-    script.src = `${GOOGLE_SHEET_URL}?action=get_top&callback=onTopLoaded&t=${Date.now()}`;
-    document.head.appendChild(script);
-  }
-}
+window.onTopLoaded = function(data) { if (data && data.status === "ok") { state.leaderboard = data.top; updateUI(); } };
+function loadLeaderboard() { if (GOOGLE_SHEET_URL) { const s = document.createElement('script'); s.src = `${GOOGLE_SHEET_URL}?action=get_top&callback=onTopLoaded&t=${Date.now()}`; document.head.appendChild(s); } }
 
 window.onGoogleSheetDataLoaded = function(data) {
   if (data && data.status === "ok") {
-    state.clicks = Number(data.clicks) || 0;
+    state.vapor = Number(data.vapor) || 0;
     state.primeCoins = Number(data.primeCoins) || 0;
-    
-    // Безопасная загрузка коллекции баков
-    if (data.unlockedTanks && Array.isArray(data.unlockedTanks)) {
-      state.unlockedTanks = data.unlockedTanks;
-    } else {
-      state.unlockedTanks = ['berserker'];
-    }
-
+    if (data.unlockedTanks && Array.isArray(data.unlockedTanks)) state.unlockedTanks = data.unlockedTanks;
+    if (data.inventory) state.inventory = data.inventory;
+    if (data.activeBuffs) state.activeBuffs = data.activeBuffs;
     if (data.equippedTank && TANKS[data.equippedTank]) {
       state.equippedTank = data.equippedTank;
-      if (!state.unlockedTanks.includes(data.equippedTank)) {
-        state.unlockedTanks.push(data.equippedTank);
-      }
+      if (!state.unlockedTanks.includes(data.equippedTank)) state.unlockedTanks.push(data.equippedTank);
     }
     if (data.coupons) state.coupons = data.coupons;
-
-    updateUI();
-    syncMusic();
-    localStorage.setItem(PRIMARY_KEY, JSON.stringify(state));
+    updateUI(); scheduleLocalSave();
   } else if (data && data.status === "not_found") {
-    state = {
-      clicks: 0,
-      primeCoins: 0,
-      equippedTank: 'berserker',
-      unlockedTanks: ['berserker'],
-      coupons: [],
-      leaderboard: []
-    };
-    updateUI();
-    forceSave();
+    scheduleLocalSave(); syncToGoogle();
   }
   loadLeaderboard();
 };
 
 function loadState() {
   const saved = localStorage.getItem(PRIMARY_KEY);
-  if (saved) {
-    try {
-      state = Object.assign(state, JSON.parse(saved));
-    } catch (e) {}
-  }
-  
-  if (!state.unlockedTanks) state.unlockedTanks = ['berserker'];
-  
+  if (saved) { try { state = Object.assign(state, JSON.parse(saved)); } catch (e) {} }
+  if (!state.inventory) state.inventory = { coils: {}, liquids: {} };
+  if (!state.activeBuffs) state.activeBuffs = { coil: null, liquid: null };
   updateUI();
-  syncMusic();
-
   if (GOOGLE_SHEET_URL) {
-    const script = document.createElement('script');
-    script.src = `${GOOGLE_SHEET_URL}?tgId=${currentUser.id}&callback=onGoogleSheetDataLoaded&t=${Date.now()}`;
-    document.head.appendChild(script);
-  } else {
-    loadLeaderboard();
-  }
+    const s = document.createElement('script');
+    s.src = `${GOOGLE_SHEET_URL}?tgId=${currentUser.id}&callback=onGoogleSheetDataLoaded&t=${Date.now()}`;
+    document.head.appendChild(s);
+  } else { loadLeaderboard(); }
 }
+
+// Навигация
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab)?.classList.add('active');
+    syncToGoogle(); // Сохраняем при смене вкладки
+  });
+});
 
 loadState();
