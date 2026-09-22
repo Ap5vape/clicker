@@ -250,20 +250,71 @@ function renderShop() {
 }
 
 function renderInventory() {
-  const c = document.getElementById('inventory-list'); if (!c) return; c.innerHTML = `<div class="shop-section-title">Мои Баки</div>`;
+  const c = document.getElementById('inventory-list');
+  if (!c) return;
+  c.innerHTML = '';
+
+  // 1. КУПОНЫ И САЙТ КАСТОМА (ПЕРВЫМИ)
+  c.innerHTML += `<div class="shop-section-title">Скидочные купоны и кастом</div>`;
+  
+  if (state.coupons && state.coupons.length > 0) {
+    state.coupons.forEach(cp => {
+      c.innerHTML += `
+        <div class="item-card">
+          <div>
+            <strong>Скидка ${cp.discount} на кейс АКБ</strong>
+            <p style="font-size:0.85rem; color:#ffaa00; font-family:monospace; margin-top:4px; font-weight:700;">${cp.code}</p>
+          </div>
+        </div>`;
+    });
+  } else {
+    c.innerHTML += `<p class="empty-text" style="padding: 6px 0 10px 0; font-size: 0.8rem;">У вас пока нет купонов. Их можно выбить в кейсах.</p>`;
+  }
+
+  c.innerHTML += `
+    <div style="margin-bottom: 15px;">
+      <button class="primary-btn" style="margin-top: 5px;" onclick="openExternalLink('https://ap5vape.github.io/Prime/')">Заказать кастомный кейс</button>
+    </div>
+  `;
+
+  // 2. БАКИ
+  c.innerHTML += `<div class="shop-section-title">Мои Баки</div>`;
   state.unlockedTanks.forEach(id => {
     const isEq = state.equippedTank === id;
-    c.innerHTML += `<div class="item-card"><div><strong>${TANKS[id].name}</strong><p style="font-size:0.8rem; color:#8b92a5;">${TANKS[id].desc}</p></div><div style="display:flex; gap:6px;">${isEq ? `<button class="item-btn equipped">Надет</button>` : `<button class="item-btn" onclick="equipTank('${id}')">Надеть</button>`}${(!isEq && TANKS[id].price > 0) ? `<button class="item-btn sell" onclick="sellTank('${id}')">Флип</button>` : ''}</div></div>`;
+    c.innerHTML += `
+      <div class="item-card">
+        <div><strong>${TANKS[id].name}</strong><p style="font-size:0.8rem; color:#8b92a5;">${TANKS[id].desc}</p></div>
+        <div style="display:flex; gap:6px;">
+          ${isEq ? `<button class="item-btn equipped">Надет</button>` : `<button class="item-btn" onclick="equipTank('${id}')">Надеть</button>`}
+          ${(!isEq && TANKS[id].price > 0) ? `<button class="item-btn sell" onclick="sellTank('${id}')">Флип</button>` : ''}
+        </div>
+      </div>`;
   });
+
+  // 3. ЖИДКОСТИ
   const liqs = Object.keys(state.inventory.liquids).filter(k => state.inventory.liquids[k] > 0);
   if (liqs.length > 0) {
     c.innerHTML += `<div class="shop-section-title">Мои Жидкости</div>`;
-    liqs.forEach(id => c.innerHTML += `<div class="item-card"><div><strong>${LIQUIDS[id].icon} ${LIQUIDS[id].name} (x${state.inventory.liquids[id]})</strong><p style="font-size:0.8rem; color:#8b92a5;">${LIQUIDS[id].desc}</p></div><button class="item-btn" onclick="equipItem('liquid', '${id}')">Залить</button></div>`);
+    liqs.forEach(id => {
+      c.innerHTML += `
+        <div class="item-card">
+          <div><strong>${LIQUIDS[id].icon} ${LIQUIDS[id].name} (x${state.inventory.liquids[id]})</strong><p style="font-size:0.8rem; color:#8b92a5;">${LIQUIDS[id].desc}</p></div>
+          <button class="item-btn" onclick="equipItem('liquid', '${id}')">Залить</button>
+        </div>`;
+    });
   }
+
+  // 4. КОЙЛЫ
   const cls = Object.keys(state.inventory.coils).filter(k => state.inventory.coils[k] > 0);
   if (cls.length > 0) {
     c.innerHTML += `<div class="shop-section-title">Мои Койлы</div>`;
-    cls.forEach(id => c.innerHTML += `<div class="item-card"><div><strong>${COILS[id].icon} ${COILS[id].name} (x${state.inventory.coils[id]})</strong><p style="font-size:0.8rem; color:#8b92a5;">${COILS[id].desc}</p></div><button class="item-btn" onclick="equipItem('coil', '${id}')">Поставить</button></div>`);
+    cls.forEach(id => {
+      c.innerHTML += `
+        <div class="item-card">
+          <div><strong>${COILS[id].icon} ${COILS[id].name} (x${state.inventory.coils[id]})</strong><p style="font-size:0.8rem; color:#8b92a5;">${COILS[id].desc}</p></div>
+          <button class="item-btn" onclick="equipItem('coil', '${id}')">Поставить</button>
+        </div>`;
+    });
   }
 }
 
